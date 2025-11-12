@@ -8,15 +8,15 @@ return new class extends Migration
 {
     public function up()
     {
-        Schema::table('brigadier_assignments', function (Blueprint $table) {
-            $table->text('comment')->nullable()->after('can_create_requests');
+        Schema::table('work_requests', function (Blueprint $table) {
+            $table->dropColumn('specialization');
         });
     }
 
     public function down()
     {
-        Schema::table('brigadier_assignments', function (Blueprint $table) {
-            $table->dropColumn('comment');
+        Schema::table('work_requests', function (Blueprint $table) {
+            $table->string('specialization')->nullable();
         });
     }
 };

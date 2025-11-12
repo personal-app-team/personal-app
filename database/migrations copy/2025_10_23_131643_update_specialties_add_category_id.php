@@ -1,0 +1,27 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('specialties', function (Blueprint $table) {
+            // Добавляем внешний ключ на категории
+            $table->foreignId('category_id')->nullable()->constrained()->nullOnDelete();
+            
+            // Оставляем поле category как строку для обратной совместимости
+            // Позже перенесем данные из category в category_id
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('specialties', function (Blueprint $table) {
+            $table->dropForeign(['category_id']);
+            $table->dropColumn('category_id');
+        });
+    }
+};

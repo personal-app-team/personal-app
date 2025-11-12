@@ -1,0 +1,36 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up()
+    {
+        Schema::table('shift_expenses', function (Blueprint $table) {
+            // Добавляем receipt_photo
+            $table->string('receipt_photo')->nullable()->after('amount');
+            
+            // Переименовываем comment в description
+            $table->renameColumn('comment', 'description');
+            
+            // Удаляем ненужные поля
+            $table->dropColumn('minutes');
+            
+            // Меняем тип на enum (если нужно)
+            // $table->enum('type', ['taxi', 'other'])->change();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        //
+    }
+};

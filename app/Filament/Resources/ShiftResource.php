@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\ShiftResource\Pages;
 use App\Models\Shift;
+use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -42,7 +43,8 @@ class ShiftResource extends Resource
                             ->searchable()
                             ->preload()
                             ->required(fn ($record) => !$record?->assignment_number)
-                            ->visible(fn ($record) => !$record?->assignment_number),
+                            ->visible(fn ($record) => !$record?->assignment_number)
+                            ->getOptionLabelFromRecordUsing(fn ($record) => (string) ($record->request_number ?? ('WR-' . $record->id))),
 
                         Forms\Components\Select::make('user_id')
                             ->label('Исполнитель')
@@ -135,34 +137,46 @@ class ShiftResource extends Resource
 
                         Forms\Components\TimePicker::make('start_time')
                             ->label('Время начала')
-                            ->seconds(false)
-                            ->required(),
+                            ->required()
+                            ->live()
+                            ->format('H:i')
+                            ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                if ($state && $get('end_time')) {
+                                    self::calculateWorkedTime($state, $get('end_time'), $set);
+                                }
+                            }),
 
                         Forms\Components\TimePicker::make('end_time')
                             ->label('Время окончания')
-                            ->seconds(false)
-                            ->required(),
-
-                        Forms\Components\Select::make('status')
-                            ->label('Статус')
-                            ->options([
-                                'scheduled' => 'Запланирована',
-                                'active' => 'Активна',
-                                'pending_approval' => 'Ожидает подтверждения',
-                                'completed' => 'Завершена',
-                                'paid' => 'Оплачена',
-                                'cancelled' => 'Отменена',
-                            ])
                             ->required()
-                            ->default('scheduled')
-                            ->live(),
+                            ->live()
+                            ->format('H:i')
+                            ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                if ($state && $get('start_time')) {
+                                    self::calculateWorkedTime($get('start_time'), $state, $set);
+                                }
+                            }),
 
-                        Forms\Components\TextInput::make('worked_minutes')
-                            ->label('Отработано минут')
-                            ->numeric()
-                            ->minValue(0)
-                            ->helperText('Автоматически пересчитывается в часы')
-                            ->live(),
+                        Forms\Components\TextInput::make('worked_hours')
+                            ->label('Отработано часов')
+                            ->disabled()
+                            ->prefix('ч.')
+                            ->dehydrated(false)
+                            ->formatStateUsing(function ($state, $record) {
+                                if ($record) {
+                                    return number_format($record->worked_minutes / 60, 2);
+                                }
+                                return $state ?? '0.00';
+                            }),
+
+                        Forms\Components\Hidden::make('worked_minutes')
+                            ->reactive()
+                            ->required()
+                            ->afterStateHydrated(function ($component, $state, $record) {
+                                if ($record && $record->worked_minutes) {
+                                    $component->state($record->worked_minutes);
+                                }
+                            }),
                     ])->columns(2),
 
                 Forms\Components\Section::make('Расчет оплаты')
@@ -250,6 +264,35 @@ class ShiftResource extends Resource
                             ->helperText('Отметьте, когда смена оплачена'),
                     ]),
             ]);
+    }
+
+    protected static function calculateWorkedTime(?string $start, ?string $end, Forms\Set $set): void 
+    {
+        try {
+            // Parse times ensuring proper format
+            $startTime = Carbon::parse($start)->setDate(now()->year, now()->month, now()->day);
+            $endTime = Carbon::parse($end)->setDate(now()->year, now()->month, now()->day);
+
+            // Handle overnight shifts
+            if ($endTime->lt($startTime)) {
+                $endTime->addDay();
+            }
+
+            $minutes = $startTime->diffInMinutes($endTime);
+            
+            // Update both fields
+            $set('worked_minutes', $minutes);
+            $set('worked_hours', number_format($minutes / 60, 2));
+
+            \Log::info('Time calculation:', [
+                'start' => $start,
+                'end' => $end,
+                'minutes' => $minutes,
+                'hours' => number_format($minutes / 60, 2)
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Time calculation error: ' . $e->getMessage());
+        }
     }
 
     public static function table(Table $table): Table
@@ -341,6 +384,15 @@ class ShiftResource extends Resource
                         'cancelled' => 'danger',
                         default => 'gray',
                     }),
+
+                // Tables\Columns\TextColumn::make('worked_hours')
+                //     ->label('Отработано часов')
+                //     ->formatStateUsing(fn ($record) => number_format($record->worked_minutes / 60, 2))
+                //     ->suffix(' ч.')
+                //     ->alignEnd()
+                //     ->sortable(query: function ($query, $direction) {
+                //         return $query->orderBy('worked_minutes', $direction);
+                //     }),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('role')

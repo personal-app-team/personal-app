@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 class Shift extends Model
 {
@@ -11,44 +12,59 @@ class Shift extends Model
 
     protected $fillable = [
         'request_id',
-        'user_id', 
+        'user_id',
         'contractor_id',
-        'work_date',
-        'month_period',
-        'start_time',
-        'end_time', 
-        'status', // ['scheduled', 'active', 'pending_approval', 'completed', 'paid', 'cancelled']
         'role',
-        'notes',
-        'worked_minutes',
         'specialty_id',
         'work_type_id',
-        'address_id',
-        'tax_status_id',
         'contract_type_id',
+        'tax_status_id',
+        'work_date',
+        'start_time',
+        'end_time',
+        'status',
+        'worked_minutes',
         'base_rate',
-        'hand_amount',      // Сумма НА РУКИ (до налога)
-        'payout_amount',    // Сумма К ВЫПЛАТЕ (с налогом)
-        'tax_amount',       // Сумма налога
-        'is_paid',
-        'expenses_total',
         'compensation_amount',
         'compensation_description',
-        'assignment_number' // ✅ ДОБАВЛЕНО - номер назначения для бригадиров
+        'notes',
+        'is_paid',
     ];
 
     protected $casts = [
         'work_date' => 'date',
-        'start_time' => 'datetime:H:i:s',
-        'end_time' => 'datetime:H:i:s',
+        'start_time' => 'datetime',
+        'end_time' => 'datetime',
+        'worked_minutes' => 'integer',
         'is_paid' => 'boolean',
-        'compensation_amount' => 'decimal:2',
-        'base_rate' => 'decimal:2',
-        'hand_amount' => 'decimal:2',
-        'payout_amount' => 'decimal:2',
-        'tax_amount' => 'decimal:2',
-        'expenses_total' => 'decimal:2',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::saving(function ($shift) {
+            // Recalculate worked_minutes before save
+            if ($shift->start_time && $shift->end_time) {
+                $start = Carbon::parse($shift->start_time);
+                $end = Carbon::parse($shift->end_time);
+                
+                if ($end->lt($start)) {
+                    $end->addDay();
+                }
+                
+                $shift->worked_minutes = max(0, $start->diffInMinutes($end));
+            }
+        });
+    }
+
+    /**
+     * Get the worked hours as a formatted string
+     */
+    public function getWorkedHoursAttribute(): string
+    {
+        return number_format(($this->worked_minutes ?? 0) / 60, 2);
+    }
 
     // === СВЯЗИ ===
     public function workRequest()

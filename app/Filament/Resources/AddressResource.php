@@ -49,7 +49,7 @@ class AddressResource extends Resource
                             ->searchable()
                             ->label('Проекты'),
 
-                        Forms\Components\TextInput::make('name')
+                        Forms\Components\TextInput::make('short_name')
                             ->label('Короткое Название')
                             ->required()
                             ->maxLength(255),
@@ -80,7 +80,7 @@ class AddressResource extends Resource
                     ->limitList(2)
                     ->searchable(),
 
-                Tables\Columns\TextColumn::make('name')
+                Tables\Columns\TextColumn::make('short_name')
                     ->label('Название')
                     ->searchable()
                     ->sortable(),

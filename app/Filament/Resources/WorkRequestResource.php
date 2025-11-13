@@ -51,7 +51,7 @@ class WorkRequestResource extends Resource
                             ->preload()
                             ->helperText('Выберите назначенного бригадира'),
 
-                        Forms\Components\TextInput::make('brigadier_manual')
+                        Forms\Components\TextInput::make('contact_person')
                             ->label('Контактное лицо (если не бригадир)')
                             ->maxLength(255)
                             ->helperText('Укажите ФИО и телефон контактного лица'),
@@ -123,6 +123,8 @@ class WorkRequestResource extends Resource
                             ])
                             ->required()
                             ->live()
+                            ->default(WorkRequest::PERSONNEL_OUR)
+                            ->rules(['in:our,contractor'])
                             ->afterStateUpdated(function ($state, Forms\Set $set) {
                                 // Сбрасываем зависимые поля при смене типа
                                 if ($state === WorkRequest::PERSONNEL_OUR) {

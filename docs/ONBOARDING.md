@@ -8,7 +8,11 @@
 git clone git@github.com:personal-app-team/personal-app.git
 cd personal-app
 
+# Устанавливаем laravel/sail
+composer require laravel/sail --dev
+
 # Настраиваем окружение (Docker)
+# ./vendor/bin/sail
 sail up -d
 sail composer install
 sail npm install

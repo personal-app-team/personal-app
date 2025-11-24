@@ -7,7 +7,6 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
-use App\Models\BrigadierAssignment; // Add this line
 
 class User extends Authenticatable
 {
@@ -163,16 +162,6 @@ class User extends Authenticatable
     public function dispatcherRequests()
     {
         return $this->hasMany(WorkRequest::class, 'dispatcher_id');
-    }
-
-    public function brigadierAssignments()
-    {
-        return $this->hasMany(BrigadierAssignment::class, 'brigadier_id');
-    }
-
-    public function initiatedBrigadierAssignments()
-    {
-        return $this->hasMany(BrigadierAssignment::class, 'initiator_id');
     }
 
     public function shifts()

@@ -397,7 +397,7 @@ class UserResource extends Resource
             RelationManagers\BrigadierWorkRequestsRelationManager::class,
             RelationManagers\DispatcherWorkRequestsRelationManager::class,
             RelationManagers\ShiftsRelationManager::class,
-            RelationManagers\BrigadierAssignmentsRelationManager::class,
+            RelationManagers\AssignmentsRelationManager::class,
             RelationManagers\InitiatorGrantsRelationManager::class,
         ];
     }

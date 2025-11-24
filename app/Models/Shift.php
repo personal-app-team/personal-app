@@ -129,7 +129,6 @@ class Shift extends Model
 
     public function assignmentDate()
     {
-        return $this->hasOne(BrigadierAssignmentDate::class, 'shift_id');
     }
 
     // === SCOPES ===

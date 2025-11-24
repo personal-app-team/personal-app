@@ -25,5 +25,8 @@ class AppServiceProvider extends ServiceProvider
     {
         WorkRequest::observe(WorkRequestObserver::class);
         Assignment::observe(AssignmentObserver::class);
+        
+        // Регистрируем политику для TraineeRequest стандартным способом
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\TraineeRequest::class, \App\Policies\TraineeRequestPolicy::class);
     }
 }

@@ -22,18 +22,8 @@ class PurposeAddressRuleResource extends Resource
     
     protected static ?int $navigationSort = 6;
 
-     // ДОБАВЛЯЕМ РУССКИЕ LABELS
     protected static ?string $modelLabel = 'правило по адресу';
     protected static ?string $pluralModelLabel = 'Правила по адресам';
-
-    public static function getPageLabels(): array
-    {
-        return [
-            'index' => 'Правила по адресам',
-            'create' => 'Создать правило',
-            'edit' => 'Редактировать правило',
-        ];
-    }
 
     public static function form(Form $form): Form
     {
@@ -71,13 +61,14 @@ class PurposeAddressRuleResource extends Resource
                             ->options(function ($get) {
                                 $projectId = $get('project_id');
                                 if (!$projectId) {
-                                    return \App\Models\Address::all()->pluck('name', 'id');
+                                    // ИСПРАВЛЕНИЕ: используем short_name вместо name
+                                    return \App\Models\Address::all()->pluck('short_name', 'id');
                                 }
                                 
-                                // ИСПРАВЛЕНИЕ: через связь many-to-many
+                                // ИСПРАВЛЕНИЕ: используем short_name вместо name
                                 return \App\Models\Address::whereHas('projects', function ($query) use ($projectId) {
                                     $query->where('projects.id', $projectId);
-                                })->pluck('name', 'id');
+                                })->pluck('short_name', 'id');
                             })
                             ->helperText('Оставьте пустым для общего правила')
                             ->nullable(),
@@ -104,16 +95,17 @@ class PurposeAddressRuleResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('project.name')
-                ->label('Проект')
-                ->searchable()
-                ->sortable(),
+                    ->label('Проект')
+                    ->searchable()
+                    ->sortable(),
 
                 Tables\Columns\TextColumn::make('purpose.name')
                     ->label('Назначение')
                     ->searchable()
                     ->sortable(),
                 
-                Tables\Columns\TextColumn::make('address.name')
+                // ИСПРАВЛЕНИЕ: используем short_name вместо name
+                Tables\Columns\TextColumn::make('address.short_name')
                     ->label('Адрес')
                     ->formatStateUsing(fn ($state) => $state ?: 'Общее правило')
                     ->searchable()
@@ -143,8 +135,9 @@ class PurposeAddressRuleResource extends Resource
                 Tables\Filters\SelectFilter::make('purpose')
                     ->relationship('purpose', 'name'),
                 
+                // ИСПРАВЛЕНИЕ: используем short_name вместо name
                 Tables\Filters\SelectFilter::make('address')
-                    ->relationship('address', 'name')
+                    ->relationship('address', 'short_name')
                     ->searchable()
                     ->preload()
                     ->placeholder('Все адреса'),
@@ -157,7 +150,6 @@ class PurposeAddressRuleResource extends Resource
                     ->label('Только правила по адресам')
                     ->query(fn ($query) => $query->whereNotNull('address_id')),
             ])
-            // ОБНОВЛЯЕМ ACTIONS С РУССКИМИ НАЗВАНИЯМИ
             ->actions([
                 Tables\Actions\EditAction::make()
                     ->label('Редактировать'),
@@ -170,14 +162,12 @@ class PurposeAddressRuleResource extends Resource
                         $newRecord = $record->replicate();
                         $newRecord->save();
                         
-                        // Можно добавить уведомление о успешном дублировании
                         \Filament\Notifications\Notification::make()
                             ->title('Правило продублировано')
                             ->success()
                             ->send();
                     }),
             ])
-            // ОБНОВЛЯЕМ BULK ACTIONS
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()

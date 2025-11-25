@@ -42,12 +42,26 @@ class RolePermissionSeeder extends Seeder
             'mark_notifications_read',
         ];
 
+        // Разрешения для системы назначений
+        $assignmentPermissions = [
+            'create_brigadier_schedule',
+            'create_work_request_assignment',
+            'create_mass_personnel_assignment',
+            'edit_assignments',
+            'delete_assignments',
+            'cancel_assignments',
+        ];
+
         // Создаем все разрешения
         foreach ($traineePermissions as $permission) {
             Permission::firstOrCreate(['name' => $permission]);
         }
 
         foreach ($notificationPermissions as $permission) {
+            Permission::firstOrCreate(['name' => $permission]);
+        }
+
+        foreach ($assignmentPermissions as $permission) {
             Permission::firstOrCreate(['name' => $permission]);
         }
 
@@ -85,24 +99,54 @@ class RolePermissionSeeder extends Seeder
 
         // ==================== ОБНОВЛЯЕМ СУЩЕСТВУЮЩИЕ РОЛИ ====================
 
-        // Dispatcher может создавать запросы на стажировку
+        // Dispatcher может создавать назначения на заявки и массовый персонал
         $dispatcher = Role::firstOrCreate(['name' => 'dispatcher']);
         $dispatcher->givePermissionTo([
+            // Стажеры
             'create_trainee_requests',
             'view_own_trainee_requests',
             'view_trainee_request',
-            'make_trainee_decision', // Может принимать решение по своим стажерам
+            'make_trainee_decision',
+            
+            // Уведомления
+            'view_own_notifications',
+            'mark_notifications_read',
+            
+            // Назначения
+            'create_work_request_assignment',
+            'create_mass_personnel_assignment',
+            'edit_assignments',
+            'cancel_assignments',
+        ]);
+
+        // Initiator может создавать только бригадирские назначения
+        $initiator = Role::firstOrCreate(['name' => 'initiator']);
+        $initiator->givePermissionTo([
+            // Стажеры
+            'create_trainee_requests', 
+            'view_own_trainee_requests',
+            'view_trainee_request',
+            'make_trainee_decision',
+            
+            // Уведомления
+            'view_own_notifications',
+            'mark_notifications_read',
+            
+            // Назначения
+            'create_brigadier_schedule',
+            'cancel_assignments', // Только отмена своих бригадирских назначений
+        ]);
+
+        // Executor - базовые права, не может создавать назначения
+        $executor = Role::firstOrCreate(['name' => 'executor']);
+        $executor->givePermissionTo([
             'view_own_notifications',
             'mark_notifications_read',
         ]);
 
-        // Initiator может создавать запросы на стажировку
-        $initiator = Role::firstOrCreate(['name' => 'initiator']);
-        $initiator->givePermissionTo([
-            'create_trainee_requests', 
-            'view_own_trainee_requests',
-            'view_trainee_request',
-            'make_trainee_decision', // Может принимать решение по своим стажерам
+        // Contractor - базовые права  
+        $contractor = Role::firstOrCreate(['name' => 'contractor']);
+        $contractor->givePermissionTo([
             'view_own_notifications',
             'mark_notifications_read',
         ]);
@@ -111,8 +155,8 @@ class RolePermissionSeeder extends Seeder
         $admin = Role::firstOrCreate(['name' => 'admin']);
         $admin->syncPermissions(Permission::all());
 
-        $this->command->info('✅ Роли и разрешения для системы стажеров созданы успешно!');
-        $this->command->info('👥 Новые роли: trainee, hr, manager');
-        $this->command->info('🔐 Разрешения настроены для dispatcher и initiator');
+        $this->command->info('✅ Роли и разрешения созданы успешно!');
+        $this->command->info('👥 Роли: admin, dispatcher, initiator, executor, contractor, trainee, hr, manager');
+        $this->command->info('🔐 Разрешения для назначений настроены');
     }
 }

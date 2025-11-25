@@ -20,10 +20,10 @@ class AssignmentResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-user-plus';
     protected static ?string $navigationGroup = 'Управление персоналом';
-    protected static ?string $navigationLabel = 'Назначения';
+    protected static ?string $navigationLabel = 'Назначения на работы';
     protected static ?int $navigationSort = 1;
-    protected static ?string $modelLabel = 'назначение';
-    protected static ?string $pluralModelLabel = 'Назначения';
+    protected static ?string $modelLabel = 'назначение на работы';
+    protected static ?string $pluralModelLabel = 'Назначения на работы';
 
     public static function form(Form $form): Form
     {
@@ -40,21 +40,50 @@ class AssignmentResource extends Resource
                             ])
                             ->required()
                             ->live()
-                            ->afterStateUpdated(function ($set) {
+                            ->afterStateUpdated(function ($set, $state) {
                                 $set('work_request_id', null);
                                 $set('assignment_number', null);
+                                
+                                // Автоматически устанавливаем роль для бригадиров
+                                if ($state === 'brigadier_schedule') {
+                                    $set('role_in_shift', 'brigadier');
+                                }
                             }),
                     ])->columns(1),
 
                 Forms\Components\Section::make('Основная информация')
                     ->schema([
                         Forms\Components\Select::make('user_id')
-                            ->label('Исполнитель/Бригадир')
-                            ->relationship('user', 'name')
+                            ->label(function (callable $get) {
+                                return match($get('assignment_type')) {
+                                    'brigadier_schedule' => 'Выбрать Исполнителя на роль Бригадира',
+                                    'work_request' => 'Выбрать Исполнителя',
+                                    'mass_personnel' => 'Выбрать Подрядчика',
+                                    default => 'Пользователь'
+                                };
+                            })
+                            ->options(function (callable $get) {
+                                $assignmentType = $get('assignment_type');
+                                
+                                if ($assignmentType === 'brigadier_schedule' || $assignmentType === 'work_request') {
+                                    // Выборка исполнителей (пользователи с ролью executor)
+                                    return User::whereHas('roles', function($query) {
+                                        $query->where('name', 'executor');
+                                    })->get()->pluck('full_name', 'id');
+                                } 
+                                elseif ($assignmentType === 'mass_personnel') {
+                                    // Выборка подрядчиков (пользователи с ролью contractor)
+                                    return User::whereHas('roles', function($query) {
+                                        $query->where('name', 'contractor');
+                                    })->get()->pluck('full_name', 'id');
+                                }
+                                
+                                return User::all()->pluck('full_name', 'id');
+                            })
                             ->searchable()
                             ->preload()
                             ->required()
-                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->full_name),
+                            ->reactive(),
 
                         Forms\Components\Select::make('work_request_id')
                             ->label('Заявка')
@@ -71,7 +100,10 @@ class AssignmentResource extends Resource
                                 'brigadier' => 'Бригадир',
                             ])
                             ->required()
-                            ->default('executor'),
+                            ->default('executor')
+                            ->disabled(fn (callable $get) => $get('assignment_type') === 'brigadier_schedule')
+                            ->dehydrated()
+                            ->visible(fn () => auth()->user()->can('edit_assignments')), // Только для тех, кто может редактировать
 
                         Forms\Components\Select::make('source')
                             ->label('Источник назначения')
@@ -80,7 +112,13 @@ class AssignmentResource extends Resource
                                 'initiator' => 'Инициатор',
                             ])
                             ->required()
-                            ->default('dispatcher'),
+                            ->default(function (callable $get) {
+                                // Автоматически устанавливаем источник в зависимости от типа
+                                return $get('assignment_type') === 'brigadier_schedule' ? 'initiator' : 'dispatcher';
+                            })
+                            ->disabled() // Делаем поле только для чтения
+                            ->dehydrated()
+                            ->visible(fn () => auth()->user()->can('edit_assignments')), // Только для админов и тех, кто может редактировать
                     ])->columns(2),
 
                 Forms\Components\Section::make('Планирование')

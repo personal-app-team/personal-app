@@ -7,6 +7,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
+use Carbon\Carbon;
 
 class User extends Authenticatable
 {
@@ -59,6 +60,24 @@ class User extends Authenticatable
             $this->contractor_id = null;
         }
         // Для 'contractor' contractor_id устанавливается через соответствующее поле
+    }
+
+    public function brigadierAssignments()
+    {
+        return $this->hasMany(Assignment::class, 'user_id')
+                    ->where('assignment_type', 'brigadier_schedule');
+    }
+
+    public function workRequestAssignments()
+    {
+        return $this->hasMany(Assignment::class, 'user_id')
+                    ->where('assignment_type', 'work_request');
+    }
+
+    public function activeAssignments()
+    {
+        return $this->hasMany(Assignment::class, 'user_id')
+                    ->whereIn('status', ['pending', 'confirmed']);
     }
 
     // === ОПРЕДЕЛЕНИЕ ТИПА ПОЛЬЗОВАТЕЛЯ ===
@@ -119,14 +138,46 @@ class User extends Authenticatable
     // Является ли бригадиром на указанную дату
     public function isBrigadier($date = null)
     {
-        $date = $date ?: now();
+        $date = $date ? Carbon::parse($date)->format('Y-m-d') : now()->format('Y-m-d');
         
         return $this->brigadierAssignments()
-            ->whereHas('assignmentDates', function($q) use ($date) {
-                $q->whereDate('assignment_date', $date)
-                  ->where('status', 'confirmed');
-            })
+            ->whereDate('planned_date', $date)
+            ->where('status', 'confirmed')
             ->exists();
+    }
+
+    public function canCreateRequestsAsBrigadier($date = null)
+    {
+        $date = $date ?: now()->format('Y-m-d');
+        
+        // Проверяем, есть ли у пользователя роль initiator И он бригадир на эту дату
+        return $this->hasRole('initiator') && $this->isBrigadier($date);
+    }
+
+    // Получить все даты, когда пользователь является бригадиром-инициатором
+    public function getBrigadierInitiatorDates()
+    {
+        if (!$this->hasRole('initiator')) {
+            return [];
+        }
+        
+        return $this->getBrigadierDates(); // Все даты, когда он бригадир + роль initiator
+    }
+
+    // Может ли создавать заявки как бригадир-инициатор на ЛЮБУЮ дату из своих назначений
+    public function canCreateRequestsAsBrigadierOnAnyDate()
+    {
+        return $this->hasRole('initiator') && $this->getBrigadierInitiatorDates()->isNotEmpty();
+    }
+
+    // Получить все даты, когда пользователь является бригадиром
+    public function getBrigadierDates()
+    {
+        return $this->brigadierAssignments()
+            ->where('status', 'confirmed')
+            ->pluck('planned_date')
+            ->map(fn ($date) => Carbon::parse($date)->format('Y-m-d'))
+            ->toArray();
     }
 
     // === СВЯЗИ ===
@@ -245,17 +296,6 @@ class User extends Authenticatable
     {
         $parts = array_filter([$this->surname, $this->name, $this->patronymic]);
         return implode(' ', $parts) ?: $this->name;
-    }
-
-    public function canCreateRequestsAsBrigadier($date)
-    {
-        return $this->brigadierAssignments()
-            ->whereHas('assignmentDates', function($q) use ($date) {
-                $q->whereDate('assignment_date', $date)
-                  ->where('status', 'confirmed');
-            })
-            ->where('can_create_requests', true)
-            ->exists();
     }
 
     public function getExecutorRole($date = null)

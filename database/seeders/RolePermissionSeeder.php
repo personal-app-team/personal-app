@@ -31,15 +31,7 @@ class RolePermissionSeeder extends Seeder
             // Управление стажерами
             'view_trainees',
             'manage_trainees',
-            'make_trainee_decision', // Принятие решения по стажеру
-        ];
-
-        // Разрешения для системы уведомлений
-        $notificationPermissions = [
-            'view_notifications',
-            'view_own_notifications',
-            'manage_notifications',
-            'mark_notifications_read',
+            'make_trainee_decision',
         ];
 
         // Разрешения для системы назначений
@@ -57,10 +49,6 @@ class RolePermissionSeeder extends Seeder
             Permission::firstOrCreate(['name' => $permission]);
         }
 
-        foreach ($notificationPermissions as $permission) {
-            Permission::firstOrCreate(['name' => $permission]);
-        }
-
         foreach ($assignmentPermissions as $permission) {
             Permission::firstOrCreate(['name' => $permission]);
         }
@@ -70,8 +58,7 @@ class RolePermissionSeeder extends Seeder
         // Роль Стажера
         $trainee = Role::firstOrCreate(['name' => 'trainee']);
         $trainee->syncPermissions([
-            'view_own_notifications',
-            'mark_notifications_read',
+            // Стажер имеет минимальные права
         ]);
 
         // Роль HR
@@ -81,8 +68,6 @@ class RolePermissionSeeder extends Seeder
             'view_trainee_request', 
             'approve_trainee_requests_hr',
             'view_trainees',
-            'view_notifications',
-            'mark_notifications_read',
         ]);
 
         // Роль Менеджера
@@ -93,13 +78,11 @@ class RolePermissionSeeder extends Seeder
             'approve_trainee_requests_manager', 
             'view_trainees',
             'make_trainee_decision',
-            'view_notifications',
-            'mark_notifications_read',
         ]);
 
         // ==================== ОБНОВЛЯЕМ СУЩЕСТВУЮЩИЕ РОЛИ ====================
 
-        // Dispatcher может создавать назначения на заявки и массовый персонал
+        // Dispatcher
         $dispatcher = Role::firstOrCreate(['name' => 'dispatcher']);
         $dispatcher->givePermissionTo([
             // Стажеры
@@ -108,10 +91,6 @@ class RolePermissionSeeder extends Seeder
             'view_trainee_request',
             'make_trainee_decision',
             
-            // Уведомления
-            'view_own_notifications',
-            'mark_notifications_read',
-            
             // Назначения
             'create_work_request_assignment',
             'create_mass_personnel_assignment',
@@ -119,7 +98,7 @@ class RolePermissionSeeder extends Seeder
             'cancel_assignments',
         ]);
 
-        // Initiator может создавать только бригадирские назначения
+        // Initiator
         $initiator = Role::firstOrCreate(['name' => 'initiator']);
         $initiator->givePermissionTo([
             // Стажеры
@@ -128,27 +107,21 @@ class RolePermissionSeeder extends Seeder
             'view_trainee_request',
             'make_trainee_decision',
             
-            // Уведомления
-            'view_own_notifications',
-            'mark_notifications_read',
-            
             // Назначения
             'create_brigadier_schedule',
-            'cancel_assignments', // Только отмена своих бригадирских назначений
+            'cancel_assignments',
         ]);
 
-        // Executor - базовые права, не может создавать назначения
+        // Executor - базовые права
         $executor = Role::firstOrCreate(['name' => 'executor']);
         $executor->givePermissionTo([
-            'view_own_notifications',
-            'mark_notifications_read',
+            // Базовые права исполнителя
         ]);
 
         // Contractor - базовые права  
         $contractor = Role::firstOrCreate(['name' => 'contractor']);
         $contractor->givePermissionTo([
-            'view_own_notifications',
-            'mark_notifications_read',
+            // Базовые права подрядчика
         ]);
 
         // Admin получает все разрешения
@@ -157,6 +130,7 @@ class RolePermissionSeeder extends Seeder
 
         $this->command->info('✅ Роли и разрешения созданы успешно!');
         $this->command->info('👥 Роли: admin, dispatcher, initiator, executor, contractor, trainee, hr, manager');
-        $this->command->info('🔐 Разрешения для назначений настроены');
+        $this->command->info('🔐 Разрешения для назначений и стажеров настроены');
+        $this->command->info('🗑️ Удалены разрешения для кастомных уведомлений');
     }
 }

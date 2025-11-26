@@ -7,6 +7,8 @@ use App\Models\WorkRequest;
 use App\Observers\WorkRequestObserver;
 use App\Models\Assignment;
 use App\Observers\AssignmentObserver;
+use App\Models\TraineeRequest;
+use App\Observers\TraineeRequestObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
     {
         WorkRequest::observe(WorkRequestObserver::class);
         Assignment::observe(AssignmentObserver::class);
+        TraineeRequest::observe(TraineeRequestObserver::class); // РАСКОММЕНТИРОВАТЬ
         
         // Регистрируем политики
         \Illuminate\Support\Facades\Gate::policy(\App\Models\TraineeRequest::class, \App\Policies\TraineeRequestPolicy::class);

@@ -12,18 +12,24 @@ class TraineeRequestPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->hasAnyPermission(['view_any_trainee_requests', 'view_own_trainee_requests']);
+        // HR и Manager видят все запросы
+        if ($user->hasRole(['hr', 'manager', 'admin'])) {
+            return true;
+        }
+        
+        // Остальные видят только свои
+        return $user->can('view_own_trainee_requests');
     }
 
     public function view(User $user, TraineeRequest $traineeRequest): bool
     {
-        // Пользователь может просматривать свои запросы
-        if ($user->id === $traineeRequest->user_id && $user->can('view_own_trainee_requests')) {
+        // HR и Manager видят все запросы
+        if ($user->hasRole(['hr', 'manager', 'admin'])) {
             return true;
         }
 
-        // HR и Manager могут просматривать любые запросы
-        return $user->can('view_any_trainee_requests');
+        // Пользователь может просматривать свои запросы
+        return $user->id === $traineeRequest->user_id;
     }
 
     public function create(User $user): bool

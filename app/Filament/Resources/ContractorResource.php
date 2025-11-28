@@ -125,12 +125,7 @@ class ContractorResource extends Resource
                             ->preload()
                             ->helperText('Основной налоговый режим компании')
                             ->visible(fn (callable $get): bool => (bool) $get('contract_type_id')),
-                    ])->columns(2),
-
-                Forms\Components\Section::make('Специализации и настройки')
-                    ->schema([
-                        // ... существующие поля ...
-                    ])->columns(1),    
+                    ])->columns(2),   
                     
                 Forms\Components\Section::make('Специализации и настройки')
                     ->schema([

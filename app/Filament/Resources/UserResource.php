@@ -105,8 +105,7 @@ class UserResource extends Resource
                             ->validationMessages([
                                 'required' => 'Выберите хотя бы одну роль',
                             ]),
-                            
-                        // ДОБАВЛЯЕМ ПЕРЕКЛЮЧАТЕЛЬ ТИПА ИСПОЛНИТЕЛЯ
+
                         Forms\Components\Radio::make('executor_type')
                             ->label('Тип исполнителя')
                             ->options([
@@ -114,73 +113,33 @@ class UserResource extends Resource
                                 'contractor' => '🏢 Исполнитель подрядчика',
                             ])
                             ->live()
-                            ->required(fn (callable $get): bool => 
+                            ->required(fn (callable $get): bool =>
                                 collect($get('roles') ?? [])->contains('executor')
                             )
-                            ->visible(fn (callable $get): bool => 
+                            ->visible(fn (callable $get): bool =>
                                 collect($get('roles') ?? [])->contains('executor')
                             )
                             ->afterStateUpdated(function ($set, $state) {
-                                // При выборе "наш исполнитель" очищаем подрядчика
                                 if ($state === 'our') {
                                     $set('contractor_id', null);
                                 }
                             }),
-                            
-                        // ОБНОВЛЯЕМ ПОЛЕ ПОДРЯДЧИКА
+
                         Forms\Components\Select::make('contractor_id')
                             ->label('Компания-подрядчик')
                             ->relationship('contractor', 'name')
                             ->searchable()
                             ->preload()
                             ->helperText('Выберите компанию-подрядчика для этого исполнителя')
-                            ->visible(fn (callable $get): bool => 
-                                collect($get('roles') ?? [])->contains('executor') && 
-                                $get('executor_type') === 'contractor'
-                            )
-                            ->required(fn (callable $get): bool => 
-                                collect($get('roles') ?? [])->contains('executor') && 
-                                $get('executor_type') === 'contractor'
-                            )
-                            ->validationMessages([
-                                'required' => 'Для исполнителя подрядчика необходимо выбрать компанию',
-                            ]),
-
-                        // НОВЫЕ ПОЛЯ ДЛЯ НАЛОГОВОЙ СИСТЕМЫ
-                        Forms\Components\Select::make('contract_type_id')
-                            ->label('Тип договора')
-                            ->relationship('contractType', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->live()
-                            ->afterStateUpdated(function ($set, $state) {
-                                // Сбрасываем налоговый статус при смене типа договора
-                                $set('tax_status_id', null);
-                            })
-                            ->helperText('Форма договора с исполнителем')
                             ->visible(fn (callable $get): bool =>
                                 collect($get('roles') ?? [])->contains('executor') &&
-                                $get('executor_type') === 'our'
+                                $get('executor_type') === 'contractor'
+                            )
+                            ->required(fn (callable $get): bool =>
+                                collect($get('roles') ?? [])->contains('executor') &&
+                                $get('executor_type') === 'contractor'
                             ),
 
-                        Forms\Components\Select::make('tax_status_id')
-                            ->label('Налоговый статус')
-                            ->relationship(
-                                name: 'taxStatus',
-                                titleAttribute: 'name',
-                                modifyQueryUsing: fn ($query, callable $get) => 
-                                    $query->where('contract_type_id', $get('contract_type_id'))
-                                          ->where('is_active', true)
-                            )
-                            ->searchable()
-                            ->preload()
-                            ->helperText('Налоговый режим для расчетов')
-                            ->visible(fn (callable $get): bool =>
-                                collect($get('roles') ?? [])->contains('executor') &&
-                                $get('executor_type') === 'our' &&
-                                $get('contract_type_id')
-                            ),    
-                            
                         Forms\Components\BelongsToManyCheckboxList::make('specialties')
                             ->label('Специальности')
                             ->relationship('specialties', 'name')
@@ -206,7 +165,7 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('full_name')
                     ->label('ФИО')
                     ->searchable(['name', 'surname', 'patronymic'])
-                    ->sortable()
+                    ->sortable(['name', 'surname', 'patronymic'])
                     ->weight('medium'),
                     
                 Tables\Columns\TextColumn::make('email')
@@ -219,23 +178,17 @@ class UserResource extends Resource
                     ->searchable()
                     ->toggleable(),
                     
-                Tables\Columns\TextColumn::make('type')
+                Tables\Columns\TextColumn::make('user_type')
                     ->label('Тип пользователя')
                     ->badge()
-                    ->getStateUsing(function ($record) {
-                        if ($record->isExternalContractor()) return '👑 Подрядчик';
-                        if ($record->isOurExecutor()) return '👷 Наш исполнитель';
-                        if ($record->isContractorExecutor()) return '🏢 Исполнитель подрядчика';
-                        if ($record->isInitiator()) return '📋 Инициатор';
-                        if ($record->isDispatcher()) return '📞 Диспетчер';
-                        return '❓ Другое';
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'employee' => '👤 Сотрудник',
+                        'contractor' => '🏢 Подрядчик',
+                        default => '❓ Неизвестно',
                     })
                     ->colors([
-                        '👑 Подрядчик' => 'warning',
-                        '👷 Наш исполнитель' => 'success', 
-                        '🏢 Исполнитель подрядчика' => 'info',
-                        '📋 Инициатор' => 'primary',
-                        '📞 Диспетчер' => 'gray',
+                        'employee' => 'success',
+                        'contractor' => 'warning',
                     ]),
                     
                 Tables\Columns\TextColumn::make('roles.name')
@@ -262,7 +215,9 @@ class UserResource extends Resource
                     ->searchable()
                     ->toggleable()
                     ->placeholder('—')
-                    ->formatStateUsing(fn ($state) => $state ?: '—'),
+                    ->formatStateUsing(fn ($state) => $state ?: '—')
+                    ->url(fn ($record) => $record->contractor ? ContractorResource::getUrl('edit', [$record->contractor_id]) : null)
+                    ->openUrlInNewTab(),
                     
                 Tables\Columns\TextColumn::make('specialties.name')
                     ->label('Специальности')
@@ -270,25 +225,6 @@ class UserResource extends Resource
                     ->separator(', ')
                     ->limitList(2)
                     ->toggleable(),
-
-                Tables\Columns\TextColumn::make('contractType.name')
-                    ->label('Тип договора')
-                    ->searchable()
-                    ->sortable()
-                    ->badge()
-                    ->color('gray')
-                    ->toggleable()
-                    ->placeholder('—'),
-
-                Tables\Columns\TextColumn::make('taxStatus.name')
-                    ->label('Налоговый статус')
-                    ->searchable()
-                    ->sortable()
-                    ->badge()
-                    ->formatStateUsing(fn ($state, $record) => $state ? "{$state} (" . ($record->taxStatus?->tax_rate * 100) . "%)" : '—')
-                    ->color(fn ($state) => $state ? 'primary' : 'gray')
-                    ->toggleable()
-                    ->placeholder('—'),
                     
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Создан')
@@ -334,18 +270,6 @@ class UserResource extends Resource
                     ->label('Специальность')
                     ->relationship('specialties', 'name')
                     ->multiple()
-                    ->searchable()
-                    ->preload(),
-
-                Tables\Filters\SelectFilter::make('contract_type')
-                    ->label('Тип договора')
-                    ->relationship('contractType', 'name')
-                    ->searchable()
-                    ->preload(),
-
-                Tables\Filters\SelectFilter::make('tax_status')
-                    ->label('Налоговый статус')
-                    ->relationship('taxStatus', 'name')
                     ->searchable()
                     ->preload(),
             ])
@@ -399,6 +323,7 @@ class UserResource extends Resource
             RelationManagers\ShiftsRelationManager::class,
             RelationManagers\AssignmentsRelationManager::class,
             RelationManagers\InitiatorGrantsRelationManager::class,
+            RelationManagers\EmploymentHistoryRelationManager::class,
         ];
     }
 

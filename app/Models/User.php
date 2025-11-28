@@ -22,9 +22,8 @@ class User extends Authenticatable
         'phone',
         'telegram_id',
         'contractor_id',
-        'contract_type_id', // ДОБАВИТЬ
-        'tax_status_id',    // ДОБАВИТЬ
         'notes',
+        'user_type',
     ];
 
     protected $hidden = [
@@ -37,157 +36,25 @@ class User extends Authenticatable
         'password' => 'hashed',
     ];
 
-    // === ВИРТУАЛЬНЫЕ АТРИБУТЫ ДЛЯ FILAMENT ===
-    
-    /**
-     * Accessor для типа исполнителя (для Filament)
-     */
-    public function getExecutorTypeAttribute()
+    // === НОВЫЕ СВЯЗИ ===
+
+    public function employmentHistory()
     {
-        if (!$this->hasRole('executor')) {
-            return null;
-        }
-        
-        return $this->contractor_id ? 'contractor' : 'our';
+        return $this->hasMany(EmploymentHistory::class)->orderBy('start_date', 'desc');
     }
 
-    /**
-     * Mutator для установки типа исполнителя
-     */
-    public function setExecutorTypeAttribute($value)
+    public function currentEmployment()
     {
-        if ($value === 'our') {
-            $this->contractor_id = null;
-        }
-        // Для 'contractor' contractor_id устанавливается через соответствующее поле
+        return $this->hasOne(EmploymentHistory::class)->whereNull('end_date');
     }
 
-    public function brigadierAssignments()
-    {
-        return $this->hasMany(Assignment::class, 'user_id')
-                    ->where('assignment_type', 'brigadier_schedule');
-    }
+    // === СУЩЕСТВУЮЩИЕ СВЯЗИ ===
 
-    public function workRequestAssignments()
-    {
-        return $this->hasMany(Assignment::class, 'user_id')
-                    ->where('assignment_type', 'work_request');
-    }
-
-    public function activeAssignments()
-    {
-        return $this->hasMany(Assignment::class, 'user_id')
-                    ->whereIn('status', ['pending', 'confirmed']);
-    }
-
-    // === ОПРЕДЕЛЕНИЕ ТИПА ПОЛЬЗОВАТЕЛЯ ===
-    
-    public function isInitiator()
-    {
-        return $this->hasRole('initiator') && !$this->canHaveShifts();
-    }
-    
-    public function isDispatcher() 
-    {
-        return $this->hasRole('dispatcher') && !$this->canHaveShifts();
-    }
-    
-    // User-представитель подрядчика (управляет компанией)
-    public function isExternalContractor()
-    {
-        return $this->hasRole('contractor') && is_null($this->contractor_id);
-    }
-    
-    // Наш исполнитель (сотрудник компании)
-    public function isOurExecutor()
-    {
-        return $this->hasRole('executor') && is_null($this->contractor_id);
-    }
-    
-    // Персонализированный исполнитель подрядчика
-    public function isContractorExecutor()
-    {
-        return $this->hasRole('executor') && !is_null($this->contractor_id);
-    }
-
-    /**
-     * Получить тип пользователя для отображения
-     */
-    public function getUserTypeAttribute(): string
-    {
-        if ($this->isExternalContractor()) return '👑 Подрядчик';
-        if ($this->isOurExecutor()) return '👷 Наш исполнитель';
-        if ($this->isContractorExecutor()) return '🏢 Исполнитель подрядчика';
-        if ($this->isInitiator()) return '📋 Инициатор';
-        if ($this->isDispatcher()) return '📞 Диспетчер';
-        return '❓ Другое';
-    }
-    
-    // Может создавать заявки
-    public function canCreateWorkRequests()
-    {
-        return $this->hasAnyRole(['initiator', 'dispatcher']);
-    }
-    
-    // Может иметь смены (исполнитель)
-    public function canHaveShifts()
-    {
-        return $this->hasRole('executor');
-    }
-    
-    // Является ли бригадиром на указанную дату
-    public function isBrigadier($date = null)
-    {
-        $date = $date ? Carbon::parse($date)->format('Y-m-d') : now()->format('Y-m-d');
-        
-        return $this->brigadierAssignments()
-            ->whereDate('planned_date', $date)
-            ->where('status', 'confirmed')
-            ->exists();
-    }
-
-    public function canCreateRequestsAsBrigadier($date = null)
-    {
-        $date = $date ?: now()->format('Y-m-d');
-        
-        // Проверяем, есть ли у пользователя роль initiator И он бригадир на эту дату
-        return $this->hasRole('initiator') && $this->isBrigadier($date);
-    }
-
-    // Получить все даты, когда пользователь является бригадиром-инициатором
-    public function getBrigadierInitiatorDates()
-    {
-        if (!$this->hasRole('initiator')) {
-            return [];
-        }
-        
-        return $this->getBrigadierDates(); // Все даты, когда он бригадир + роль initiator
-    }
-
-    // Может ли создавать заявки как бригадир-инициатор на ЛЮБУЮ дату из своих назначений
-    public function canCreateRequestsAsBrigadierOnAnyDate()
-    {
-        return $this->hasRole('initiator') && $this->getBrigadierInitiatorDates()->isNotEmpty();
-    }
-
-    // Получить все даты, когда пользователь является бригадиром
-    public function getBrigadierDates()
-    {
-        return $this->brigadierAssignments()
-            ->where('status', 'confirmed')
-            ->pluck('planned_date')
-            ->map(fn ($date) => Carbon::parse($date)->format('Y-m-d'))
-            ->toArray();
-    }
-
-    // === СВЯЗИ ===
-    // Для персонализированных исполнителей: компания-подрядчик
     public function contractor()
     {
         return $this->belongsTo(Contractor::class);
     }
 
-    // Для user-подрядчиков: управляемая компания
     public function managedContractor()
     {
         return $this->hasOne(Contractor::class, 'user_id');
@@ -235,67 +102,136 @@ class User extends Authenticatable
         return $this->hasMany(InitiatorGrant::class, 'initiator_id');
     }
 
-    // В модель User добавляем:
-    public function contractType()
+    // === ВИРТУАЛЬНЫЕ АТРИБУТЫ ДЛЯ FILAMENT ===
+    
+    public function getExecutorTypeAttribute()
     {
-        return $this->belongsTo(ContractType::class);
-    }
-
-    public function taxStatus()
-    {
-        return $this->belongsTo(TaxStatus::class);
-    }
-
-    // === SCOPES ===
-    public function scopeBrigadiers($query)
-    {
-        return $query->whereHas('brigadierAssignments', function($q) {
-            $q->whereHas('assignmentDates', function($q) {
-                $q->where('status', 'confirmed');
-            });
-        });
-    }
-
-    public function scopeOurExecutors($query)
-    {
-        return $query->whereHas('roles', function($q) {
-            $q->where('name', 'executor');
-        })->whereNull('contractor_id');
-    }
-
-    public function scopeContractorExecutors($query, $contractorId = null)
-    {
-        $query = $query->whereHas('roles', function($q) {
-            $q->where('name', 'executor');
-        })->whereNotNull('contractor_id');
-        
-        if ($contractorId) {
-            $query->where('contractor_id', $contractorId);
+        if (!$this->hasRole('executor')) {
+            return null;
         }
         
-        return $query;
+        return $this->contractor_id ? 'contractor' : 'our';
     }
 
-    public function scopeExternalContractors($query)
+    public function setExecutorTypeAttribute($value)
     {
-        return $query->whereHas('roles', function($q) {
-            $q->where('name', 'contractor');
-        })->whereNull('contractor_id');
+        if ($value === 'our') {
+            $this->contractor_id = null;
+        }
     }
 
-    public function scopeAvailable($query, $date)
-    {
-        return $query->whereDoesntHave('shifts', function($q) use ($date) {
-            $q->whereDate('work_date', $date)
-              ->whereIn('status', ['active', 'completed']);
-        });
-    }
-
-    // === МЕТОДЫ ===
     public function getFullNameAttribute()
     {
         $parts = array_filter([$this->surname, $this->name, $this->patronymic]);
         return implode(' ', $parts) ?: $this->name;
+    }
+
+    // === ОПРЕДЕЛЕНИЕ ТИПА ПОЛЬЗОВАТЕЛЯ ===
+    
+    public function isEmployee()
+    {
+        return $this->user_type === 'employee';
+    }
+
+    public function isContractor()
+    {
+        return $this->user_type === 'contractor';
+    }
+
+    public function isInitiator()
+    {
+        return $this->hasRole('initiator') && !$this->canHaveShifts();
+    }
+
+    public function isDispatcher()
+    {
+        return $this->hasRole('dispatcher') && !$this->canHaveShifts();
+    }
+    
+    // User-представитель подрядчика (управляет компанией)
+    public function isExternalContractor()
+    {
+        return $this->isContractor() && $this->hasRole('manager') && !$this->contractor_id;
+    }
+
+    public function isOurExecutor()
+    {
+        return $this->isEmployee() && $this->hasRole('executor');
+    }
+
+    public function isContractorExecutor()
+    {
+        return $this->isContractor() && $this->hasRole('executor') && $this->contractor_id;
+    }
+
+    public function isContractorManager()
+    {
+        return $this->isContractor() && $this->hasRole('manager') && !$this->contractor_id;
+    }
+
+    /**
+     * Получить тип пользователя для отображения
+     */
+    public function getUserTypeDisplayAttribute(): string
+    {
+        if ($this->isExternalContractor()) return '👑 Подрядчик';
+        if ($this->isOurExecutor()) return '👷 Наш исполнитель';
+        if ($this->isContractorExecutor()) return '🏢 Исполнитель подрядчика';
+        if ($this->isInitiator()) return '📋 Инициатор';
+        if ($this->isDispatcher()) return '📞 Диспетчер';
+        return '❓ Другое';
+    }
+    
+    // === БИЗНЕС-ЛОГИКА ===
+    
+    public function canCreateWorkRequests()
+    {
+        return $this->hasAnyRole(['initiator', 'dispatcher']);
+    }
+    
+    public function canHaveShifts()
+    {
+        return $this->hasRole('executor');
+    }
+    
+    public function isBrigadier($date = null)
+    {
+        $date = $date ? Carbon::parse($date)->format('Y-m-d') : now()->format('Y-m-d');
+        
+        return $this->brigadierAssignments()
+            ->whereDate('planned_date', $date)
+            ->where('status', 'confirmed')
+            ->exists();
+    }
+
+    public function canCreateRequestsAsBrigadier($date = null)
+    {
+        $date = $date ?: now()->format('Y-m-d');
+        
+        return $this->hasRole('initiator') && $this->isBrigadier($date);
+    }
+
+    public function getBrigadierInitiatorDates()
+    {
+        if (!$this->hasRole('initiator')) {
+            return [];
+        }
+        
+        return $this->getBrigadierDates();
+    }
+
+    public function canCreateRequestsAsBrigadierOnAnyDate()
+    {
+        return $this->hasRole('initiator') && $this->getBrigadierInitiatorDates()->isNotEmpty();
+    }
+
+    public function getBrigadierDates()
+    {
+        return $this->brigadierAssignments()
+            ->where('status', 'confirmed')
+            ->pluck('planned_date')
+            ->map(fn ($date) => Carbon::parse($date)->format('Y-m-d'))
+            ->toArray();
     }
 
     public function getExecutorRole($date = null)
@@ -322,7 +258,6 @@ class User extends Authenticatable
         return $roles[$role] ?? 'Исполнитель';
     }
 
-    // Получить всех исполнителей (если это user-подрядчик)
     public function getManagedExecutors()
     {
         if (!$this->isExternalContractor()) {
@@ -332,7 +267,6 @@ class User extends Authenticatable
         return $this->managedContractor?->executors ?? collect();
     }
 
-    // Получить все смены подрядчика
     public function getContractorShifts()
     {
         if (!$this->isExternalContractor()) {
@@ -342,37 +276,100 @@ class User extends Authenticatable
         return $this->managedContractor?->allShifts() ?? collect();
     }
 
+    // === SCOPES ===
+    
+    public function scopeBrigadiers($query)
+    {
+        return $query->whereHas('brigadierAssignments', function($q) {
+            $q->where('status', 'confirmed');
+        });
+    }
+
+    public function scopeOurExecutors($query)
+    {
+        return $query->whereHas('roles', function($q) {
+            $q->where('name', 'executor');
+        })->whereNull('contractor_id');
+    }
+
+    public function scopeContractorExecutors($query, $contractorId = null)
+    {
+        $query = $query->whereHas('roles', function($q) {
+            $q->where('name', 'executor');
+        })->whereNotNull('contractor_id');
+        
+        if ($contractorId) {
+            $query->where('contractor_id', $contractorId);
+        }
+        
+        return $query;
+    }
+
+    public function scopeAvailable($query, $date)
+    {
+        return $query->whereDoesntHave('shifts', function($q) use ($date) {
+            $q->whereDate('work_date', $date)
+              ->whereIn('status', ['active', 'completed']);
+        });
+    }
+
+    // === RELATIONSHIPS FOR ASSIGNMENTS ===
+    
+    public function brigadierAssignments()
+    {
+        return $this->hasMany(Assignment::class, 'user_id')
+                    ->where('assignment_type', 'brigadier_schedule');
+    }
+
+    public function workRequestAssignments()
+    {
+        return $this->hasMany(Assignment::class, 'user_id')
+                    ->where('assignment_type', 'work_request');
+    }
+
+    public function activeAssignments()
+    {
+        return $this->hasMany(Assignment::class, 'user_id')
+                    ->whereIn('status', ['pending', 'confirmed']);
+    }
+
     // === ВАЛИДАЦИЯ И БИЗНЕС-ЛОГИКА ===
     
-    /**
-     * Boot метод для валидации бизнес-правил
-     */
     protected static function boot()
     {
         parent::boot();
 
         static::saving(function ($user) {
-            // Проверяем, что исполнитель привязан к подрядчику, если это исполнитель подрядчика
-            if ($user->hasRole('executor') && $user->isContractorExecutor() && !$user->contractor_id) {
-                throw new \Exception('Исполнитель подрядчика должен быть привязан к компании-подрядчику');
+            // Автоматическая установка user_type на основе ролей
+            if (is_null($user->user_type)) {
+                $user->user_type = $user->determineUserType();
             }
-            
-            // Проверяем, что наш исполнитель не привязан к подрядчику
-            if ($user->hasRole('executor') && $user->isOurExecutor() && $user->contractor_id) {
-                throw new \Exception('Наш исполнитель не может быть привязан к подрядчику');
-            }
-            
-            // Проверяем, что пользователь с ролью contractor не привязан к другому подрядчику
-            if ($user->hasRole('contractor') && $user->contractor_id) {
-                $existingContractor = Contractor::where('user_id', $user->id)->first();
-                if ($existingContractor && $existingContractor->id != $user->contractor_id) {
-                    throw new \Exception('Пользователь с ролью contractor уже привязан к другому подрядчику');
+
+            // Валидация для подрядчиков
+            if ($user->isContractor()) {
+                if ($user->hasRole('executor') && !$user->contractor_id) {
+                    throw new \Exception('Исполнитель подрядчика должен быть привязан к компании-подрядчику');
                 }
+            }
+
+            // Валидация для сотрудников
+            if ($user->isEmployee() && $user->contractor_id) {
+                throw new \Exception('Сотрудник не может быть привязан к подрядчику');
             }
         });
     }
 
-    // Обновляем метод getExecutorTypeInfo
+    protected function determineUserType()
+    {
+        // Если пользователь имеет роль contractor (старая роль) или привязан к подрядчику, то contractor
+        if ($this->hasRole('contractor') || $this->contractor_id) {
+            return 'contractor';
+        }
+
+        // Иначе - employee
+        return 'employee';
+    }
+
     public function getExecutorTypeInfo(): array
     {
         if (!$this->hasRole('executor')) {
@@ -385,8 +382,8 @@ class User extends Authenticatable
                 'label' => '👷 Наш исполнитель',
                 'description' => 'Сотрудник компании',
                 'contractor' => null,
-                'contract_type' => $this->contractType?->name,
-                'tax_status' => $this->taxStatus?->name
+                'employment_type' => $this->currentEmployment?->employment_form ?? 'unknown',
+                'position' => $this->currentEmployment?->position ?? 'Не указана'
             ];
         }
 
@@ -403,18 +400,4 @@ class User extends Authenticatable
 
         return ['type' => 'unknown', 'label' => 'Неизвестный тип'];
     }
-
-    // === СТАВКИ - НОВЫЕ МЕТОДЫ ===
-
-    /**
-     * Получить ставку для специальности и вида работ с учетом приоритетов
-     */
-
-    /**
-     * Получить все доступные ставки пользователя
-     */
-
-    /**
-     * Установить индивидуальную ставку для специальности и вида работ
-     */
 }

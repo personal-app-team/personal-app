@@ -36,6 +36,74 @@ class User extends Authenticatable
         'password' => 'hashed',
     ];
 
+    // === СВЯЗИ ДЛЯ СИСТЕМЫ ПОДБОРА ПЕРСОНАЛА ===
+
+    public function recruitmentRequests()
+    {
+        return $this->hasMany(RecruitmentRequest::class, 'user_id'); // заявки как заявитель
+    }
+
+    public function hrResponsibleRequests()
+    {
+        return $this->hasMany(RecruitmentRequest::class, 'hr_responsible_id'); // заявки как ответственный HR
+    }
+
+    public function expertCandidates()
+    {
+        return $this->hasMany(Candidate::class, 'expert_id'); // кандидаты как эксперт
+    }
+
+    public function conductedInterviews()
+    {
+        return $this->hasMany(Interview::class, 'interviewer_id'); // проведенные собеседования
+    }
+
+    public function createdVacancies()
+    {
+        return $this->hasMany(Vacancy::class, 'created_by_id'); // созданные вакансии
+    }
+
+    public function approvedHiringDecisions()
+    {
+        return $this->hasMany(HiringDecision::class, 'approved_by_id'); // утвержденные решения о найме
+    }
+
+    public function requestedPositionChanges()
+    {
+        return $this->hasMany(PositionChangeRequest::class, 'requested_by_id'); // запрошенные изменения должностей
+    }
+
+    public function positionChangeRequests()
+    {
+        return $this->hasMany(PositionChangeRequest::class);
+    }
+
+    public function approvedPositionChanges()
+    {
+        return $this->hasMany(PositionChangeRequest::class, 'approved_by_id'); // утвержденные изменения должностей
+    }
+
+    // === SCOPES ДЛЯ СИСТЕМЫ ПОДБОРА ===
+
+    public function scopeHr($query)
+    {
+        return $query->whereHas('roles', function($q) {
+            $q->whereIn('name', ['hr', 'head_hr']);
+        });
+    }
+
+    public function scopeHeadHr($query)
+    {
+        return $query->role('head_hr');
+    }
+
+    public function scopeInterviewers($query)
+    {
+        return $query->whereHas('roles', function($q) {
+            $q->where('name', 'interviewer');
+        });
+    }
+
     // === НОВЫЕ СВЯЗИ ===
 
     public function employmentHistory()

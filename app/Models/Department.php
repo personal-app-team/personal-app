@@ -36,4 +36,28 @@ class Department extends Model
     {
         return $this->hasMany(EmploymentHistory::class);
     }
+
+    // === СВЯЗИ ДЛЯ СИСТЕМЫ ПОДБОРА ПЕРСОНАЛА ===
+
+    public function vacancies()
+    {
+        return $this->hasMany(Vacancy::class);
+    }
+
+    public function recruitmentRequests()
+    {
+        return $this->hasMany(RecruitmentRequest::class);
+    }
+
+    // === SCOPES ===
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function scopeWithManager($query)
+    {
+        return $query->whereNotNull('manager_id');
+    }
 }

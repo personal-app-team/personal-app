@@ -31,6 +31,7 @@ class EmploymentHistory extends Model
         'primary_specialty_id',
         'notes',
         'created_by_id',
+        'position_change_request_id', // добавляем новое поле
     ];
 
     protected $casts = [
@@ -41,6 +42,36 @@ class EmploymentHistory extends Model
         'overtime_rate' => 'decimal:2',
         'has_overtime' => 'boolean',
     ];
+
+    public function positionChangeRequest()
+    {
+        return $this->belongsTo(PositionChangeRequest::class);
+    }
+
+    // === СВЯЗИ ДЛЯ СИСТЕМЫ ПОДБОРА ===
+
+    public function hiringDecision()
+    {
+        return $this->belongsTo(HiringDecision::class);
+    }
+
+    public function positionChangeRequest()
+    {
+        return $this->belongsTo(PositionChangeRequest::class);
+    }
+
+    // === ВИРТУАЛЬНЫЕ АТРИБУТЫ ===
+
+    public function getIsActiveAttribute()
+    {
+        return is_null($this->end_date);
+    }
+
+    public function getDurationInMonthsAttribute()
+    {
+        $end = $this->end_date ?: now();
+        return $this->start_date->diffInMonths($end);
+    }
 
     public function user()
     {

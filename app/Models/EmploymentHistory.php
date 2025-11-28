@@ -31,7 +31,7 @@ class EmploymentHistory extends Model
         'primary_specialty_id',
         'notes',
         'created_by_id',
-        'position_change_request_id', // добавляем новое поле
+        'position_change_request_id',
     ];
 
     protected $casts = [
@@ -43,21 +43,11 @@ class EmploymentHistory extends Model
         'has_overtime' => 'boolean',
     ];
 
-    public function positionChangeRequest()
-    {
-        return $this->belongsTo(PositionChangeRequest::class);
-    }
-
-    // === СВЯЗИ ДЛЯ СИСТЕМЫ ПОДБОРА ===
+    // === СВЯЗИ ДЛЯ СИСТЕМЫ ПОДБОРА ПЕРСОНАЛА ===
 
     public function hiringDecision()
     {
         return $this->belongsTo(HiringDecision::class);
-    }
-
-    public function positionChangeRequest()
-    {
-        return $this->belongsTo(PositionChangeRequest::class);
     }
 
     // === ВИРТУАЛЬНЫЕ АТРИБУТЫ ===
@@ -72,6 +62,8 @@ class EmploymentHistory extends Model
         $end = $this->end_date ?: now();
         return $this->start_date->diffInMonths($end);
     }
+
+    // === ОСНОВНЫЕ СВЯЗИ ===
 
     public function user()
     {
@@ -102,6 +94,13 @@ class EmploymentHistory extends Model
     {
         return $this->belongsTo(User::class, 'created_by_id');
     }
+
+    public function positionChangeRequest()
+    {
+        return $this->belongsTo(PositionChangeRequest::class);
+    }
+
+    // === SCOPES ===
 
     public function scopeActive($query)
     {

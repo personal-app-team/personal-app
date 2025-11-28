@@ -1,5 +1,4 @@
 <?php
-// app/Filament/Resources/PositionChangeRequestResource.php
 
 namespace App\Filament\Resources;
 
@@ -193,22 +192,24 @@ class PositionChangeRequestResource extends Resource
                 Tables\Actions\Action::make('approve')
                     ->label('Утвердить')
                     ->icon('heroicon-o-check')
-                    ->action(function (PositionChangeRequest $record, array $data) {
+                    ->action(function (PositionChangeRequest $record) {
                         $record->approve(auth()->user());
                     })
                     ->color('success')
                     ->requiresConfirmation()
-                    ->modalHeading('Утверждение изменения')
-                    ->modalDescription("Вы уверены, что хотите утвердить изменение для сотрудника {$record->user->name}?")
+                    ->modalHeading(fn (PositionChangeRequest $record) => "Утверждение изменения для {$record->user->name}")
+                    ->modalDescription(fn (PositionChangeRequest $record) => "Вы уверены, что хотите утвердить изменение должности с '{$record->current_position}' на '{$record->new_position}'?")
                     ->visible(fn (PositionChangeRequest $record) => $record->status === 'pending'),
                 Tables\Actions\Action::make('reject')
                     ->label('Отклонить')
                     ->icon('heroicon-o-x-mark')
-                    ->action(function (PositionChangeRequest $record, array $data) {
+                    ->action(function (PositionChangeRequest $record) {
                         $record->reject(auth()->user());
                     })
                     ->color('danger')
                     ->requiresConfirmation()
+                    ->modalHeading(fn (PositionChangeRequest $record) => "Отклонение изменения для {$record->user->name}")
+                    ->modalDescription(fn (PositionChangeRequest $record) => "Вы уверены, что хотите отклонить изменение должности с '{$record->current_position}' на '{$record->new_position}'?")
                     ->visible(fn (PositionChangeRequest $record) => $record->status === 'pending'),
                 Tables\Actions\ViewAction::make(),
             ])

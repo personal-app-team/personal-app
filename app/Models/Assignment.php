@@ -3,12 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
 
 class Assignment extends Model
 {
     use HasFactory;
+    use LogsActivity;
 
     protected $fillable = [
         'work_request_id',
@@ -40,6 +43,54 @@ class Assignment extends Model
         'rejected_at' => 'datetime',
         'is_custom_planned_address' => 'boolean',
     ];
+
+    // === Логирование ===
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'assignment_type',
+                'status',
+                'user_id',
+                'work_request_id',
+                'assignment_number',
+                'planned_date',
+                'planned_start_time',
+                'planned_duration_hours',
+                'planned_address_id',
+                'planned_custom_address',
+                'assignment_comment',
+                'confirmed_at',
+                'rejected_at',
+                'rejection_reason',
+            ])
+            ->logOnlyDirty() // Только измененные поля
+            ->dontSubmitEmptyLogs()
+            ->dontLogIfAttributesChangedOnly(['updated_at'])
+            ->setDescriptionForEvent(function(string $eventName) {
+                return match($eventName) {
+                    'created' => 'Назначение создано',
+                    'updated' => 'Назначение изменено',
+                    'deleted' => 'Назначение удалено',
+                    'restored' => 'Назначение восстановлено',
+                    default => "Назначение {$eventName}",
+                };
+            })
+            ->useLogName('assignments')
+            ->logFillable() // Автоматически логировать fillable поля
+            ->submitEmptyLogs(false);
+    }
+    
+    // Дополнительные настройки для лучшего отображения
+    public function tapActivity(Activity $activity, string $eventName)
+    {
+        // Добавляем удобные метки для отношений
+        $activity->properties = $activity->properties->merge([
+            'user_name' => $this->user?->full_name,
+            'work_request_number' => $this->workRequest?->request_number,
+            'planned_address' => $this->full_planned_address,
+        ]);
+    }
 
     // === СВЯЗИ ===
     public function workRequest()

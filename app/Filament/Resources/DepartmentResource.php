@@ -46,7 +46,8 @@ class DepartmentResource extends Resource
                         Forms\Components\Select::make('manager_id')
                             ->label('Руководитель отдела')
                             ->relationship('manager', 'full_name')
-                            ->searchable()
+                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->full_name)
+                            ->searchable(['full_name', 'email'])
                             ->preload(),
 
                         Forms\Components\Toggle::make('is_active')
@@ -67,12 +68,13 @@ class DepartmentResource extends Resource
 
                 Tables\Columns\TextColumn::make('parent.name')
                     ->label('Родительский отдел')
-                    ->sortable()
+                    ->sortable(false)
                     ->placeholder('—'),
 
                 Tables\Columns\TextColumn::make('manager.full_name')
                     ->label('Руководитель')
                     ->sortable()
+                    ->searchable()
                     ->placeholder('—'),
 
                 Tables\Columns\IconColumn::make('is_active')

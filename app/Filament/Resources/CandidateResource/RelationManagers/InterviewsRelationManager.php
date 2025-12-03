@@ -79,7 +79,7 @@ class InterviewsRelationManager extends RelationManager
                         'cultural' => 'success',
                         'combined' => 'primary',
                     ]),
-                Tables\Columns\TextColumn::make('interviewer.name')
+                Tables\Columns\TextColumn::make('interviewer.full_name')
                     ->label('Собеседующий')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('status')

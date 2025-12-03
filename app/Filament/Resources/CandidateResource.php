@@ -133,7 +133,7 @@ class CandidateResource extends Resource
                     ->tooltip(function ($record) {
                         return $record->recruitmentRequest->vacancy?->title;
                     }),
-                Tables\Columns\TextColumn::make('recruitmentRequest.user.name')
+                Tables\Columns\TextColumn::make('recruitmentRequest.user.full_name')
                     ->label('Заявитель')
                     ->searchable()
                     ->sortable(),
@@ -181,7 +181,7 @@ class CandidateResource extends Resource
                         'in_reserve' => 'primary',
                         'rejected' => 'danger',
                     ]),
-                Tables\Columns\TextColumn::make('expert.name')
+                Tables\Columns\TextColumn::make('expert.full_name')
                     ->label('Эксперт')
                     ->toggleable()
                     ->placeholder('—'),

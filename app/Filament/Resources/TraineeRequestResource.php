@@ -150,14 +150,14 @@ class TraineeRequestResource extends Resource
                     ->sortable()
                     ->toggleable(),
 
-                Tables\Columns\TextColumn::make('user.name')
+                Tables\Columns\TextColumn::make('user.full_name')
                     ->label('Инициатор')
                     ->searchable()
                     ->sortable()
                     ->toggleable(),
 
                 // НОВЫЕ КОЛОНКИ ДЛЯ HR И МЕНЕДЖЕРА
-                Tables\Columns\TextColumn::make('hrUser.name')
+                Tables\Columns\TextColumn::make('hrUser.full_name')
                     ->label('HR утвердивший')
                     ->sortable()
                     ->toggleable()
@@ -170,7 +170,7 @@ class TraineeRequestResource extends Resource
                     ->toggleable()
                     ->placeholder('—'),
 
-                Tables\Columns\TextColumn::make('managerUser.name')
+                Tables\Columns\TextColumn::make('managerUser.full_name')
                     ->label('Менеджер утвердивший')
                     ->sortable()
                     ->toggleable()

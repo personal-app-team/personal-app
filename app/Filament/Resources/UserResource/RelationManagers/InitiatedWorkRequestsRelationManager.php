@@ -59,7 +59,7 @@ class InitiatedWorkRequestsRelationManager extends RelationManager
                     ->label('Назначение')
                     ->searchable(),
                     
-                Tables\Columns\TextColumn::make('brigadier.name')
+                Tables\Columns\TextColumn::make('brigadier.full_name')
                     ->label('Бригадир')
                     ->searchable(),
                     

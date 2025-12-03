@@ -238,7 +238,7 @@ class WorkRequestResource extends Resource
                     ->time('H:i')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('initiator.name')
+                Tables\Columns\TextColumn::make('initiator.full_name')
                     ->label('Инициатор')
                     ->searchable()
                     ->sortable(),

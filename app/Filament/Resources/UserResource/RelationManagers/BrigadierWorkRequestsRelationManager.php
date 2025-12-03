@@ -30,7 +30,7 @@ class BrigadierWorkRequestsRelationManager extends RelationManager
                     ->label('Проект')
                     ->searchable(),
                     
-                Tables\Columns\TextColumn::make('initiator.name')
+                Tables\Columns\TextColumn::make('initiator.full_name')
                     ->label('Инициатор')
                     ->searchable(),
                     

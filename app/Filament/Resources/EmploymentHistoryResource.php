@@ -34,7 +34,7 @@ class EmploymentHistoryResource extends Resource
                     ->schema([
                         Forms\Components\Select::make('user_id')
                             ->label('Сотрудник')
-                            ->relationship('user', 'name')
+                            ->relationship('user', 'full_name')
                             ->getOptionLabelFromRecordUsing(fn (User $record) => $record->full_name)
                             ->searchable()
                             ->preload()
@@ -165,7 +165,7 @@ class EmploymentHistoryResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('user.name')
+                Tables\Columns\TextColumn::make('user.full_name')
                     ->label('Сотрудник')
                     ->formatStateUsing(fn ($state, EmploymentHistory $record) => $record->user->full_name)
                     ->sortable(['surname', 'name'])
@@ -224,7 +224,7 @@ class EmploymentHistoryResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('user')
                     ->label('Сотрудник')
-                    ->relationship('user', 'name')
+                    ->relationship('user', 'full_name')
                     ->searchable()
                     ->preload(),
                     

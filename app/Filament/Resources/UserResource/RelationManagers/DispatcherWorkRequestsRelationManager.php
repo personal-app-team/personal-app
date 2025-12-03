@@ -30,11 +30,11 @@ class DispatcherWorkRequestsRelationManager extends RelationManager
                     ->label('Проект')
                     ->searchable(),
                     
-                Tables\Columns\TextColumn::make('initiator.name')
+                Tables\Columns\TextColumn::make('initiator.full_name')
                     ->label('Инициатор')
                     ->searchable(),
                     
-                Tables\Columns\TextColumn::make('brigadier.name')
+                Tables\Columns\TextColumn::make('brigadier.full_name')
                     ->label('Бригадир')
                     ->searchable(),
                     

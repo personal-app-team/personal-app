@@ -88,7 +88,7 @@ class PositionChangeRequestsRelationManager extends RelationManager
                     ->label('Дата вступления')
                     ->date('d.m.Y')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('requestedBy.name')
+                Tables\Columns\TextColumn::make('requestedBy.full_name')
                     ->label('Инициатор'),
             ])
             ->filters([

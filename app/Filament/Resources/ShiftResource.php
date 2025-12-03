@@ -48,7 +48,7 @@ class ShiftResource extends Resource
 
                         Forms\Components\Select::make('user_id')
                             ->label('Исполнитель')
-                            ->relationship('user', 'name')
+                            ->relationship('user', 'full_name')
                             ->searchable()
                             ->preload()
                             ->required()
@@ -309,7 +309,7 @@ class ShiftResource extends Resource
                     ->date('d.m.Y')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('user.name')
+                Tables\Columns\TextColumn::make('user.full_name')
                     ->label('Исполнитель')
                     ->searchable()
                     ->sortable()

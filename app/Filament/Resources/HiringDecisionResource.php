@@ -167,7 +167,7 @@ class HiringDecisionResource extends Resource
                         'approved' => 'success',
                         'rejected' => 'danger',
                     ]),
-                Tables\Columns\TextColumn::make('approvedBy.name')
+                Tables\Columns\TextColumn::make('approvedBy.full_name')
                     ->label('Утверждающий'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Создано')

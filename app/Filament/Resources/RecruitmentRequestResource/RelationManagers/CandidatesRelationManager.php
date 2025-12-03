@@ -137,7 +137,7 @@ class CandidatesRelationManager extends RelationManager
                         'in_reserve' => 'primary',
                         'rejected' => 'danger',
                     ]),
-                Tables\Columns\TextColumn::make('expert.name')
+                Tables\Columns\TextColumn::make('expert.full_name')
                     ->label('Эксперт')
                     ->toggleable()
                     ->placeholder('—'),

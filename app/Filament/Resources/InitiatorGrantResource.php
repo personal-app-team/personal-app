@@ -75,12 +75,12 @@ class InitiatorGrantResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('initiator.name')
+                Tables\Columns\TextColumn::make('initiator.full_name')
                     ->searchable()
                     ->sortable()
                     ->label('Инициатор (кто выдал)'),
                     
-                Tables\Columns\TextColumn::make('brigadier.name')
+                Tables\Columns\TextColumn::make('brigadier.full_name')
                     ->searchable()
                     ->sortable()
                     ->label('Бригадир (кому выдано)'),

@@ -40,7 +40,7 @@ class RecruitmentRequestResource extends Resource
                             ->nullable(),
                         Forms\Components\Select::make('user_id')
                             ->label('Заявитель')
-                            ->relationship('user', 'name')
+                            ->relationship('user', 'full_name')
                             ->searchable()
                             ->preload()
                             ->required(),
@@ -121,7 +121,7 @@ class RecruitmentRequestResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->placeholder('—'),
-                Tables\Columns\TextColumn::make('user.name')
+                Tables\Columns\TextColumn::make('user.full_name')
                     ->label('Заявитель')
                     ->searchable()
                     ->sortable(),
@@ -175,7 +175,7 @@ class RecruitmentRequestResource extends Resource
                     ->date('d.m.Y')
                     ->sortable()
                     ->color(fn ($record) => $record->isOverdue() ? 'danger' : 'gray'),
-                Tables\Columns\TextColumn::make('hrResponsible.name')
+                Tables\Columns\TextColumn::make('hrResponsible.full_name')
                     ->label('Ответственный HR')
                     ->placeholder('—'),
             ])

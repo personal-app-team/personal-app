@@ -222,7 +222,7 @@ class CompensationResource extends Resource
                         'rejected' => 'Отклонено',
                     }),
                 
-                Tables\Columns\TextColumn::make('approvedBy.name')
+                Tables\Columns\TextColumn::make('approvedBy.full_name')
                     ->label('Утвердил')
                     ->sortable(),
                 

@@ -34,7 +34,7 @@ class InterviewResource extends Resource
                         Forms\Components\Select::make('candidate_id')
                             ->label('Кандидат')
                             ->relationship('candidate', 'full_name')
-                            ->searchable()
+                            ->searchable(['full_name', 'email', 'phone'])
                             ->preload()
                             ->required(),
                         Forms\Components\DateTimePicker::make('scheduled_at')
@@ -135,7 +135,7 @@ class InterviewResource extends Resource
                         'cultural' => 'success',
                         'combined' => 'primary',
                     ]),
-                Tables\Columns\TextColumn::make('interviewer.name')
+                Tables\Columns\TextColumn::make('interviewer.full_name')
                     ->label('Собеседующий')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('status')

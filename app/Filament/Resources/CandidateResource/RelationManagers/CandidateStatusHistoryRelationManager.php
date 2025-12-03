@@ -91,7 +91,7 @@ class CandidateStatusHistoryRelationManager extends RelationManager
                         'rejected' => 'danger',
                     ])
                     ->placeholder('—'),
-                Tables\Columns\TextColumn::make('changedBy.name')
+                Tables\Columns\TextColumn::make('changedBy.full_name')
                     ->label('Кто изменил')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('comment')

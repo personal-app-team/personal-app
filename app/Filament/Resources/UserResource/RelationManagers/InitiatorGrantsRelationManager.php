@@ -21,7 +21,7 @@ class InitiatorGrantsRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('id')
             ->columns([
-                Tables\Columns\TextColumn::make('initiator.name')
+                Tables\Columns\TextColumn::make('initiator.full_name')
                     ->label('Кто выдал')
                     ->searchable(),
                     

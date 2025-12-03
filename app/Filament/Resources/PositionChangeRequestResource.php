@@ -34,7 +34,7 @@ class PositionChangeRequestResource extends Resource
                     ->schema([
                         Forms\Components\Select::make('user_id')
                             ->label('Сотрудник')
-                            ->relationship('user', 'name')
+                            ->relationship('user', 'full_name')
                             ->searchable()
                             ->preload()
                             ->required()
@@ -127,7 +127,7 @@ class PositionChangeRequestResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('user.name')
+                Tables\Columns\TextColumn::make('user.full_name')
                     ->label('Сотрудник')
                     ->searchable()
                     ->sortable(),
@@ -157,10 +157,10 @@ class PositionChangeRequestResource extends Resource
                     ->label('Дата вступления')
                     ->date('d.m.Y')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('requestedBy.name')
+                Tables\Columns\TextColumn::make('requestedBy.full_name')
                     ->label('Инициатор')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('approvedBy.name')
+                Tables\Columns\TextColumn::make('approvedBy.full_name')
                     ->label('Утвердил')
                     ->placeholder('—')
                     ->toggleable(),
@@ -180,7 +180,7 @@ class PositionChangeRequestResource extends Resource
                     ]),
                 Tables\Filters\SelectFilter::make('user')
                     ->label('Сотрудник')
-                    ->relationship('user', 'name')
+                    ->relationship('user', 'full_name')
                     ->searchable()
                     ->preload(),
                 Tables\Filters\Filter::make('effective_date')

@@ -22,7 +22,7 @@ class CandidateDecisionsRelationManager extends RelationManager
             ->schema([
                 Forms\Components\Select::make('user_id')
                     ->label('Заявитель')
-                    ->relationship('user', 'name')
+                    ->relationship('user', 'full_name')
                     ->default(auth()->id())
                     ->required(),
                 Forms\Components\Select::make('decision')
@@ -51,7 +51,7 @@ class CandidateDecisionsRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('decision')
             ->columns([
-                Tables\Columns\TextColumn::make('user.name')
+                Tables\Columns\TextColumn::make('user.full_name')
                     ->label('Заявитель')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('decision')

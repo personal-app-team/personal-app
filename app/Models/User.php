@@ -36,6 +36,8 @@ class User extends Authenticatable
         'password' => 'hashed',
     ];
 
+    protected $appends = ['full_name'];
+
     // === СВЯЗИ ДЛЯ СИСТЕМЫ ПОДБОРА ПЕРСОНАЛА ===
 
     public function recruitmentRequests()
@@ -188,10 +190,21 @@ class User extends Authenticatable
         }
     }
 
-    public function getFullNameAttribute()
+    public function getFullNameAttribute(): string
     {
-        $parts = array_filter([$this->surname, $this->name, $this->patronymic]);
-        return implode(' ', $parts) ?: $this->name;
+        // Используем поле из БД, если оно есть
+        if (isset($this->attributes['full_name']) && $this->attributes['full_name']) {
+            return $this->attributes['full_name'];
+        }
+        
+        // Или вычисляем на лету для новых записей
+        $parts = array_filter([
+            $this->surname ?? '',
+            $this->name ?? '',
+            $this->patronymic ?? ''
+        ]);
+        
+        return implode(' ', array_filter($parts)) ?: ($this->name ?? '');
     }
 
     // === ОПРЕДЕЛЕНИЕ ТИПА ПОЛЬЗОВАТЕЛЯ ===
@@ -467,5 +480,25 @@ class User extends Authenticatable
         }
 
         return ['type' => 'unknown', 'label' => 'Неизвестный тип'];
+    }
+
+    public static function updateAllFullNames(): void
+    {
+        \DB::statement("
+            UPDATE users 
+            SET full_name = CONCAT(
+                COALESCE(NULLIF(TRIM(surname), ''), ''),
+                CASE 
+                    WHEN TRIM(surname) != '' AND (TRIM(name) != '' OR TRIM(patronymic) != '') THEN ' '
+                    ELSE ''
+                END,
+                COALESCE(NULLIF(TRIM(name), ''), ''),
+                CASE 
+                    WHEN TRIM(patronymic) != '' THEN ' '
+                    ELSE ''
+                END,
+                COALESCE(NULLIF(TRIM(patronymic), ''), '')
+            )
+        ");
     }
 }

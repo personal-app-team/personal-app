@@ -246,7 +246,7 @@ class AssignmentResource extends Resource
                         default => 'gray'
                     }),
 
-                Tables\Columns\TextColumn::make('user.name')
+                Tables\Columns\TextColumn::make('user.full_name')
                     ->label('Исполнитель')
                     ->searchable()
                     ->sortable(),

@@ -9,6 +9,7 @@ use App\Models\Assignment;
 use App\Observers\AssignmentObserver;
 use App\Models\TraineeRequest;
 use App\Observers\TraineeRequestObserver;
+use Illuminate\Console\Scheduling\Schedule;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -32,5 +33,10 @@ class AppServiceProvider extends ServiceProvider
         // Регистрируем политики
         \Illuminate\Support\Facades\Gate::policy(\App\Models\TraineeRequest::class, \App\Policies\TraineeRequestPolicy::class);
         \Illuminate\Support\Facades\Gate::policy(\App\Models\Assignment::class, \App\Policies\AssignmentPolicy::class);
+
+        // Добавляем расписание для очистки логов
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+            $schedule->command('activitylog:clean')->dailyAt('03:00');
+        });
     }
 }

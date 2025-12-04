@@ -4,12 +4,10 @@ namespace App\Observers;
 
 use App\Models\Assignment;
 use App\Models\Shift;
+use Illuminate\Support\Facades\Log;
 
 class AssignmentObserver
 {
-    /**
-     * Handle the Assignment "updated" event.
-     */
     public function updated(Assignment $assignment): void
     {
         // Если это назначение бригадира, статус изменился на "confirmed" и смена еще не создана
@@ -19,8 +17,22 @@ class AssignmentObserver
             !$assignment->shift_id) {
             $this->createShiftFromConfirmedAssignment($assignment);
         }
+        
+        // Логируем изменение статуса в файл активности
+        if ($assignment->isDirty('status')) {
+            $oldStatus = $assignment->getOriginal('status');
+            $newStatus = $assignment->status;
+            
+            Log::channel('activity')->info("Изменен статус назначения", [
+                'assignment_id' => $assignment->id,
+                'from' => $oldStatus,
+                'to' => $newStatus,
+                'user_id' => $assignment->user_id,
+                'assignment_number' => $assignment->assignment_number,
+            ]);
+        }
     }
-
+    
     /**
      * Создать смену на основе подтвержденного назначения бригадира
      */
@@ -62,8 +74,8 @@ class AssignmentObserver
     {
         // Здесь можно добавить логику генерации номера
         // Пока используем простой вариант
-        $initiator = $assignment->user; // Временная логика
-        $initials = $this->getInitials($initiator->name);
+        $initiator = $assignment->user;
+        $initials = $this->getInitials($initiator->full_name);
         $sequence = Assignment::where('user_id', $assignment->user_id)
             ->whereDate('created_at', today())
             ->count();
@@ -77,9 +89,9 @@ class AssignmentObserver
     /**
      * Получить инициалы из ФИО
      */
-    private function getInitials($name): string
+    private function getInitials($fullName): string
     {
-        $parts = explode(' ', $name);
+        $parts = explode(' ', $fullName);
         $initials = '';
         
         if (isset($parts[0])) $initials .= mb_substr($parts[0], 0, 1);

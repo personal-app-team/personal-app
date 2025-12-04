@@ -4,11 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 use Carbon\Carbon;
 
 class Shift extends Model
 {
     use HasFactory;
+    use LogsActivity;
 
     protected $fillable = [
         'request_id',
@@ -38,6 +41,62 @@ class Shift extends Model
         'worked_minutes' => 'integer',
         'is_paid' => 'boolean',
     ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'status',
+                'user_id',
+                'work_date',
+                'start_time',
+                'end_time',
+                'worked_minutes',
+                'compensation_amount',
+                'base_rate',
+                'hand_amount',
+                'payout_amount',
+                'tax_amount',
+                'expenses_total',
+                'is_paid',
+                'assignment_number',
+                'request_id',
+                'role',
+                'specialty_id',
+                'work_type_id',
+                'address_id',
+                'tax_status_id',
+                'contract_type_id',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->dontLogIfAttributesChangedOnly(['updated_at'])
+            ->setDescriptionForEvent(function(string $eventName) {
+                return match($eventName) {
+                    'created' => 'Смена создана',
+                    'updated' => 'Смена изменена',
+                    'deleted' => 'Смена удалена',
+                    'restored' => 'Смена восстановлена',
+                    default => "Смена {$eventName}",
+                };
+            })
+            ->useLogName('shifts');
+    }
+
+    /**
+     * Дополнительные настройки для лучшего отображения
+     */
+    public function tapActivity(\Spatie\Activitylog\Models\Activity $activity, string $eventName)
+    {
+        $activity->properties = $activity->properties->merge([
+            'user_name' => $this->user?->full_name,
+            'work_request_number' => $this->workRequest?->request_number,
+            'specialty_name' => $this->specialty?->name,
+            'assignment_number' => $this->assignment_number,
+            'work_date_formatted' => $this->work_date ? $this->work_date->format('d.m.Y') : null,
+            'worked_hours' => $this->worked_hours,
+        ]);
+    }
 
     protected static function boot()
     {

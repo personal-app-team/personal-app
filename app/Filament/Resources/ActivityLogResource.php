@@ -3,11 +3,14 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ActivityLogResource\Pages;
+use App\Models\User;
+use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Spatie\Activitylog\Models\Activity;
 use Illuminate\Database\Eloquent\Builder;
+use Spatie\Activitylog\Models\Activity;
+use Carbon\Carbon;
 
 class ActivityLogResource extends Resource
 {
@@ -21,10 +24,20 @@ class ActivityLogResource extends Resource
     protected static ?string $modelLabel = 'запись истории';
     protected static ?string $pluralModelLabel = 'История изменений';
     
+    public static function canViewAny(): bool
+    {
+        return true;
+    }
+    
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+    
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->where('created_at', '>=', now()->subYear()) // Только за год
+            ->whereDate('created_at', '>=', Carbon::now()->subYear()->toDateString())
             ->orderBy('created_at', 'desc');
     }
     
@@ -32,11 +45,9 @@ class ActivityLogResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('causer.full_name')
-                    ->label('Пользователь')
-                    ->sortable()
-                    ->searchable()
-                    ->placeholder('Система'),
+                Tables\Columns\TextColumn::make('id')
+                    ->label('ID')
+                    ->sortable(),
                     
                 Tables\Columns\TextColumn::make('description')
                     ->label('Действие')
@@ -45,21 +56,18 @@ class ActivityLogResource extends Resource
                 Tables\Columns\TextColumn::make('subject_type')
                     ->label('Тип объекта')
                     ->formatStateUsing(fn ($state) => match($state) {
-                        'App\\Models\\Assignment' => 'Назначение',
-                        'App\\Models\\User' => 'Пользователь',
-                        'App\\Models\\Shift' => 'Смена',
-                        'App\\Models\\WorkRequest' => 'Заявка',
+                        'App\\Models\\Assignment' => '📋 Назначение',
+                        'App\\Models\\User' => '👤 Пользователь',
+                        'App\\Models\\Shift' => '💰 Смена',
+                        'App\\Models\\WorkRequest' => '📄 Заявка',
+                        'App\\Models\\Compensation' => '💸 Компенсация',
+                        'App\\Models\\Contractor' => '🏢 Подрядчик',
                         default => class_basename($state),
-                    }),
+                    })
+                    ->searchable(),
                     
                 Tables\Columns\TextColumn::make('subject_id')
-                    ->label('ID объекта')
-                    ->url(fn ($record) => 
-                        $record->subject_type === 'App\\Models\\Assignment' 
-                            ? AssignmentResource::getUrl('edit', ['record' => $record->subject_id])
-                            : null
-                    )
-                    ->openUrlInNewTab(),
+                    ->label('ID объекта'),
                     
                 Tables\Columns\TextColumn::make('event')
                     ->label('Событие')
@@ -83,34 +91,15 @@ class ActivityLogResource extends Resource
                     ->dateTime('d.m.Y H:i:s')
                     ->sortable()
                     ->toggleable(),
-                    
-                Tables\Columns\IconColumn::make('properties')
-                    ->label('Детали')
-                    ->icon('heroicon-o-information-circle')
-                    ->tooltip('Показать детали изменений')
-                    ->action(
-                        Tables\Actions\Action::make('viewDetails')
-                            ->modalHeading('Детали изменений')
-                            ->modalContent(fn ($record) => view(
-                                'filament.resources.activity-log-resource.components.log-details',
-                                ['log' => $record]
-                            ))
-                    ),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('causer')
-                    ->label('Пользователь')
-                    ->relationship('causer', 'full_name')
-                    ->searchable()
-                    ->preload(),
-                    
                 Tables\Filters\SelectFilter::make('subject_type')
                     ->label('Тип объекта')
                     ->options([
-                        'App\\Models\\Assignment' => 'Назначения',
-                        'App\\Models\\User' => 'Пользователи',
-                        'App\\Models\\Shift' => 'Смены',
-                        'App\\Models\\WorkRequest' => 'Заявки',
+                        'App\\Models\\Assignment' => '📋 Назначения',
+                        'App\\Models\\User' => '👤 Пользователи',
+                        'App\\Models\\Shift' => '💰 Смены',
+                        'App\\Models\\WorkRequest' => '📄 Заявки',
                     ])
                     ->multiple(),
                     
@@ -153,8 +142,7 @@ class ActivityLogResource extends Resource
             ])
             ->bulkActions([])
             ->defaultSort('created_at', 'desc')
-            ->striped()
-            ->poll('30s'); // Автообновление каждые 30 секунд
+            ->striped();
     }
     
     public static function getPages(): array

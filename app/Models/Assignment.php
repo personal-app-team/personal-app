@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
@@ -82,7 +83,7 @@ class Assignment extends Model
     }
     
     // Дополнительные настройки для лучшего отображения
-    public function tapActivity(Activity $activity, string $eventName)
+    public function tapActivity(\Spatie\Activitylog\Models\Activity $activity, string $eventName)
     {
         // Добавляем удобные метки для отношений
         $activity->properties = $activity->properties->merge([

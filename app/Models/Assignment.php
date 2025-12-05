@@ -21,7 +21,6 @@ class Assignment extends Model
         'source',
         'planned_date',
         'assignment_number',
-        // Новые поля для единой системы
         'assignment_type',
         'planned_start_time',
         'planned_duration_hours',

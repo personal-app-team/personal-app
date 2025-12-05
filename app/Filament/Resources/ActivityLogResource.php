@@ -61,6 +61,7 @@ class ActivityLogResource extends Resource
                         'App\\Models\\Shift' => '💰 Смена',
                         'App\\Models\\WorkRequest' => '📄 Заявка',
                         'App\\Models\\Compensation' => '💸 Компенсация',
+                        'App\\Models\\ShiftExpense' => '🧾 Расход смены',
                         'App\\Models\\Contractor' => '🏢 Подрядчик',
                         default => class_basename($state),
                     })
@@ -100,6 +101,8 @@ class ActivityLogResource extends Resource
                         'App\\Models\\User' => '👤 Пользователи',
                         'App\\Models\\Shift' => '💰 Смены',
                         'App\\Models\\WorkRequest' => '📄 Заявки',
+                        'App\\Models\\Compensation' => '💸 Компенсации',
+                        'App\\Models\\ShiftExpense' => '🧾 Расходы смен',
                     ])
                     ->multiple(),
                     

@@ -4,10 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\Traits\CausesActivity;
 
 class WorkRequest extends Model
 {
     use HasFactory;
+    use LogsActivity, CausesActivity;
 
     // === СТАТУСЫ ЗАЯВКИ (ПОЛНЫЙ НАБОР) ===
     const STATUS_DRAFT = 'draft';
@@ -64,6 +68,72 @@ class WorkRequest extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'request_number',
+                'initiator_id',
+                'brigadier_id',
+                'contact_person',
+                'category_id',
+                'work_type_id',
+                'address_id',
+                'is_custom_address',
+                'custom_address',
+                'project_id',
+                'purpose_id',
+                'personnel_type',
+                'contractor_id',
+                'mass_personnel_names',
+                'work_date',
+                'start_time',
+                'workers_count',
+                'estimated_shift_duration',
+                'status',
+                'dispatcher_id',
+                'additional_info',
+                'total_worked_hours',
+            ])
+            ->logOnlyDirty() // Только измененные поля
+            ->dontSubmitEmptyLogs()
+            ->dontLogIfAttributesChangedOnly(['updated_at'])
+            ->setDescriptionForEvent(function(string $eventName) {
+                return match($eventName) {
+                    'created' => 'Заявка создана',
+                    'updated' => 'Заявка изменена',
+                    'deleted' => 'Заявка удалена',
+                    'restored' => 'Заявка восстановлена',
+                    default => "Заявка {$eventName}",
+                };
+            })
+            ->useLogName('work_requests')
+            ->logFillable()
+            ->submitEmptyLogs(false);
+    }
+    
+    /**
+     * Дополнительные настройки для лучшего отображения
+     */
+    public function tapActivity(\Spatie\Activitylog\Models\Activity $activity, string $eventName)
+    {
+        $activity->properties = $activity->properties->merge([
+            'initiator_name' => $this->initiator?->full_name,
+            'brigadier_name' => $this->brigadier?->full_name,
+            'dispatcher_name' => $this->dispatcher?->full_name,
+            'category_name' => $this->category?->name,
+            'work_type_name' => $this->workType?->name,
+            'project_name' => $this->project?->name,
+            'purpose_name' => $this->purpose?->name,
+            'contractor_name' => $this->contractor?->name,
+            'final_address' => $this->final_address,
+            'personnel_type_display' => $this->personnel_type_display,
+            'status_display' => $this->status_display,
+            'workers_count' => $this->workers_count,
+            'estimated_hours' => $this->estimated_shift_duration,
+        ]);
+    }
 
     // === МАССИВЫ ДЛЯ УДОБСТВА ===
     public static function getStatuses()

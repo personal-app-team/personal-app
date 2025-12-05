@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\Traits\CausesActivity;
 
 class MassPersonnelReport extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity, CausesActivity;
 
     protected $fillable = [
         'request_id',
@@ -19,7 +22,7 @@ class MassPersonnelReport extends Model
         'tax_status_id',
         'contract_type_id',
         'category_id', 
-        'specialty_id', // ← ДОБАВЛЕНО
+        'specialty_id',
         'work_type_id',
         'base_hourly_rate',
         'total_amount',
@@ -45,7 +48,52 @@ class MassPersonnelReport extends Model
         'paid_at' => 'datetime',
     ];
 
+    // === ЛОГИРОВАНИЕ ===
+    
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'request_id', 'workers_count', 'total_hours', 'compensation_amount',
+                'tax_status_id', 'contract_type_id', 'category_id', 'specialty_id',
+                'work_type_id', 'base_hourly_rate', 'total_amount', 'expenses_total',
+                'tax_amount', 'net_amount', 'status', 'submitted_at', 'approved_at', 'paid_at'
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->dontLogIfAttributesChangedOnly(['updated_at'])
+            ->setDescriptionForEvent(function(string $eventName) {
+                return match($eventName) {
+                    'created' => 'Отчет по массовому персоналу создан',
+                    'updated' => 'Отчет по массовому персоналу изменен',
+                    'deleted' => 'Отчет по массовому персоналу удален',
+                    'restored' => 'Отчет по массовому персоналу восстановлен',
+                    default => "Отчет {$eventName}",
+                };
+            })
+            ->useLogName('mass_personnel_report')
+            ->logFillable()
+            ->submitEmptyLogs(false);
+    }
+
+    public function tapActivity(\Spatie\Activitylog\Models\Activity $activity, string $eventName)
+    {
+        $activity->properties = $activity->properties->merge([
+            'financial_operation' => true,
+            'total_amount_formatted' => number_format($this->total_amount, 2) . ' ₽',
+            'net_amount_formatted' => number_format($this->net_amount, 2) . ' ₽',
+            'status_ru' => match($this->status) {
+                'draft' => 'Черновик',
+                'pending_approval' => 'Ожидает утверждения',
+                'approved' => 'Утвержден',
+                'paid' => 'Оплачен',
+                default => $this->status,
+            }
+        ]);
+    }
+
     // === СВЯЗИ ===
+    
     public function workRequest()
     {
         return $this->belongsTo(WorkRequest::class, 'request_id');
@@ -76,7 +124,6 @@ class MassPersonnelReport extends Model
         return $this->belongsTo(WorkType::class);
     }
 
-    // Посещенные локации (аналогично Shift)
     public function visitedLocations()
     {
         return $this->hasMany(MassPersonnelVisitedLocation::class);
@@ -85,6 +132,16 @@ class MassPersonnelReport extends Model
     public function compensations()
     {
         return $this->morphMany(Compensation::class, 'compensatable');
+    }
+
+    public function expenses()
+    {
+        return $this->morphMany(Expense::class, "expensable");
+    }
+
+    public function getExpensesTotalAttribute()
+    {
+        return $this->expenses()->sum("amount");
     }
 
     // === РАСЧЕТНЫЕ МЕТОДЫ ===
@@ -96,7 +153,7 @@ class MassPersonnelReport extends Model
     {
         $baseAmount = $this->base_hourly_rate * $this->total_hours;
         $compensation = $this->compensation_amount;
-        $expenses = $this->expenses_total;
+        $expenses = $this->expenses_total; // геттер из связанных расходов
         
         return $baseAmount + $compensation + $expenses;
     }
@@ -151,6 +208,10 @@ class MassPersonnelReport extends Model
             'status' => 'pending_approval',
             'submitted_at' => now()
         ]);
+        
+        activity()
+            ->performedOn($this)
+            ->log('Отчет отправлен на утверждение');
     }
 
     public function approve()
@@ -159,6 +220,10 @@ class MassPersonnelReport extends Model
             'status' => 'approved', 
             'approved_at' => now()
         ]);
+        
+        activity()
+            ->performedOn($this)
+            ->log('Отчет утвержден');
     }
 
     public function markAsPaid()
@@ -167,5 +232,9 @@ class MassPersonnelReport extends Model
             'status' => 'paid',
             'paid_at' => now()
         ]);
+        
+        activity()
+            ->performedOn($this)
+            ->log('Отчет отмечен как оплаченный');
     }
 }

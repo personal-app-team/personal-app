@@ -186,6 +186,16 @@ class Shift extends Model
         return $this->morphMany(Compensation::class, 'compensatable');
     }
 
+    public function expenses()
+    {
+        return $this->morphMany(Expense::class, "expensable");
+    }
+
+    public function getExpensesTotalAttribute()
+    {
+        return $this->expenses()->sum("amount");
+    }
+
     public function assignmentDate()
     {
     }

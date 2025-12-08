@@ -173,12 +173,12 @@ class Shift extends Model
 
     public function visitedLocations()
     {
-        return $this->hasMany(VisitedLocation::class);
+        return $this->morphMany(VisitedLocation::class, 'visitable');
     }
 
     public function photos()
     {
-        return $this->hasMany(ShiftPhoto::class);
+        return $this->morphMany(Photo::class, 'photoable');
     }
 
     public function compensations()
@@ -196,9 +196,9 @@ class Shift extends Model
         return $this->expenses()->sum("amount");
     }
 
-    public function assignmentDate()
-    {
-    }
+    // public function assignmentDate()
+    // {
+    // }
 
     // === SCOPES ===
     public function scopeForUser($query, $userId)
@@ -351,6 +351,11 @@ class Shift extends Model
         $this->save();
         
         return $this;
+    }
+
+    public function getTotalTimeFromLocations()
+    {
+        return $this->visitedLocations()->sum('duration_minutes') / 60;
     }
 
     // === WORKFLOW МЕТОДЫ ===

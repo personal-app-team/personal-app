@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ExpenseResource\Pages;
+use App\Filament\Resources\ExpenseResource\RelationManagers;
 use App\Models\Expense;
 use App\Filament\Resources\ShiftResource;
 use App\Filament\Resources\MassPersonnelReportResource;
@@ -274,6 +275,14 @@ class ExpenseResource extends Resource
             ->defaultSort('created_at', 'desc')
             ->striped()
             ->deferLoading();
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            // ... другие RelationManagers
+            RelationManagers\PhotosRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

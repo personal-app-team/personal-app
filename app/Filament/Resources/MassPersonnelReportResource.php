@@ -55,13 +55,6 @@ class MassPersonnelReportResource extends Resource
                             ->columnSpanFull()
                             ->helperText('Выберите заявку на работу, к которой относится отчет'),
                             
-                        Forms\Components\TextInput::make('workers_count')
-                            ->label('Количество работников')
-                            ->numeric()
-                            ->required()
-                            ->minValue(1)
-                            ->default(1),
-                            
                         Forms\Components\TextInput::make('total_hours')
                             ->label('Общее количество часов')
                             ->numeric()
@@ -69,16 +62,8 @@ class MassPersonnelReportResource extends Resource
                             ->minValue(0)
                             ->step(0.01)
                             ->suffix('ч.'),
-                            
-                        Forms\Components\Textarea::make('worker_names')
-                            ->label('Имена работников')
-                            ->maxLength(65535)
-                            ->nullable()
-                            ->columnSpanFull()
-                            ->rows(3)
-                            ->helperText('Перечислите имена работников через запятую или построчно'),
-                    ])->columns(2),
-                    
+                    ]), // ← ЗАКРЫВАЕМ СЕКЦИЮ
+                        
                 Forms\Components\Section::make('Финансовая информация')
                     ->schema([
                         Forms\Components\TextInput::make('base_hourly_rate')
@@ -114,7 +99,7 @@ class MassPersonnelReportResource extends Resource
                             ->prefix('₽')
                             ->default(0),
                     ])->columns(2),
-                    
+                        
                 Forms\Components\Section::make('Справочная информация')
                     ->schema([
                         Forms\Components\Select::make('tax_status_id')
@@ -154,7 +139,7 @@ class MassPersonnelReportResource extends Resource
                             ->preload()
                             ->nullable(),
                     ])->columns(2),
-                    
+                        
                 Forms\Components\Section::make('Статус и даты')
                     ->schema([
                         Forms\Components\Select::make('status')
@@ -176,16 +161,16 @@ class MassPersonnelReportResource extends Resource
                             ->helperText('Автоматически заполняется при отправке на утверждение'),
                             
                         Forms\Components\DateTimePicker::make('approved_at')
-                            ->label('Дата утверждения')
-                            ->nullable()
-                            ->helperText('Автоматически заполняется при утверждении'),
+                                ->label('Дата утверждения')
+                                ->nullable()
+                                ->helperText('Автоматически заполняется при утверждении'),
                             
                         Forms\Components\DateTimePicker::make('paid_at')
-                            ->label('Дата оплаты')
-                            ->nullable()
-                            ->helperText('Автоматически заполняется при отметке "Оплачен"'),
+                                ->label('Дата оплаты')
+                                ->nullable()
+                                ->helperText('Автоматически заполняется при отметке "Оплачен"'),
                     ])->columns(2),
-                    
+                        
                 Forms\Components\Section::make('Расчетные поля (автоматические)')
                     ->schema([
                         Forms\Components\TextInput::make('total_amount')
@@ -232,7 +217,8 @@ class MassPersonnelReportResource extends Resource
                     ->sortable()
                     ->alignCenter()
                     ->badge()
-                    ->color('info'),
+                    ->color('info')
+                    ->getStateUsing(fn ($record) => $record->workers_count),
                     
                 Tables\Columns\TextColumn::make('total_hours')
                     ->label('Часы')
@@ -427,12 +413,10 @@ class MassPersonnelReportResource extends Resource
                     ->hidden(fn (MassPersonnelReport $record) => $record->status !== 'approved')
                     ->action(fn (MassPersonnelReport $record) => $record->markAsPaid()),
                     
-                Tables\Actions\Action::make('viewLocations')
-                    ->label('Посещенные места')
-                    ->icon('heroicon-o-map-pin')
-                    ->url(fn ($record) => MassPersonnelVisitedLocationResource::getUrl('index', [
-                        'tableFilters[mass_personnel_report][values]' => [$record->id]
-                    ]))
+                Tables\Actions\Action::make('viewWorkers')
+                    ->label('Работники')
+                    ->icon('heroicon-o-user-group')
+                    ->url(fn ($record) => self::getUrl('edit', [$record->id]) . '?activeRelationManager=0')
                     ->color('gray'),
                     
                 Tables\Actions\DeleteAction::make()
@@ -456,9 +440,11 @@ class MassPersonnelReportResource extends Resource
     public static function getRelations(): array
     {
         return [
+            RelationManagers\ContractorWorkersRelationManager::class,
             RelationManagers\VisitedLocationsRelationManager::class,
             RelationManagers\CompensationsRelationManager::class,
             RelationManagers\ExpensesRelationManager::class,
+            RelationManagers\PhotosRelationManager::class,
         ];
     }
 

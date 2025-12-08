@@ -93,6 +93,16 @@ class MassPersonnelReport extends Model
     }
 
     // === СВЯЗИ ===
+
+    public function photos()
+    {
+        return $this->morphMany(Photo::class, 'photoable');
+    }
+
+    public function contractorWorkers()
+    {
+        return $this->hasMany(ContractorWorker::class);
+    }
     
     public function workRequest()
     {
@@ -126,7 +136,7 @@ class MassPersonnelReport extends Model
 
     public function visitedLocations()
     {
-        return $this->hasMany(MassPersonnelVisitedLocation::class);
+        return $this->morphMany(VisitedLocation::class, 'visitable');
     }
 
     public function compensations()
@@ -153,9 +163,53 @@ class MassPersonnelReport extends Model
     {
         $baseAmount = $this->base_hourly_rate * $this->total_hours;
         $compensation = $this->compensation_amount;
-        $expenses = $this->expenses_total; // геттер из связанных расходов
+        $expenses = $this->expenses_total;
         
-        return $baseAmount + $compensation + $expenses;
+        // Сумма по всем подтвержденным работникам
+        $workersTotal = $this->contractorWorkers()
+            ->confirmed()
+            ->get()
+            ->sum('amount');
+        
+        return $baseAmount + $compensation + $expenses + $workersTotal;
+    }
+
+    public function getTotalHoursAttribute()
+    {
+        // Если есть подтвержденные работники, считаем по ним
+        if ($this->contractorWorkers()->confirmed()->exists()) {
+            return $this->contractorWorkers()
+                ->confirmed()
+                ->get()
+                ->sum('calculated_hours');
+        }
+        
+        // Иначе берем из поля total_hours или считаем по локациям
+        return $this->getAttribute('total_hours') ?? 
+            $this->visitedLocations->sum('duration_minutes') / 60;
+    }
+
+    public function getWorkersCountAttribute()
+    {
+        return $this->contractorWorkers()->confirmed()->count();
+    }
+
+    // И геттер для worker_names (для обратной совместимости):
+    public function getWorkerNamesAttribute()
+    {
+        return $this->contractorWorkers()
+            ->confirmed()
+            ->get()
+            ->pluck('full_name')
+            ->implode(', ');
+    }
+
+    // Метод для подтверждения всех работников диспетчером
+    public function confirmAllWorkers($userId, $reason = null)
+    {
+        foreach ($this->contractorWorkers()->unconfirmed()->get() as $worker) {
+            $worker->confirm($userId, $reason);
+        }
     }
 
     /**

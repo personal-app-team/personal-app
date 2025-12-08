@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ShiftResource\Pages;
+use App\Filament\Resources\ShiftResource\RelationManagers;
 use App\Models\Shift;
 use Carbon\Carbon;
 use Filament\Forms;
@@ -384,15 +385,6 @@ class ShiftResource extends Resource
                         'cancelled' => 'danger',
                         default => 'gray',
                     }),
-
-                // Tables\Columns\TextColumn::make('worked_hours')
-                //     ->label('Отработано часов')
-                //     ->formatStateUsing(fn ($record) => number_format($record->worked_minutes / 60, 2))
-                //     ->suffix(' ч.')
-                //     ->alignEnd()
-                //     ->sortable(query: function ($query, $direction) {
-                //         return $query->orderBy('worked_minutes', $direction);
-                //     }),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('role')
@@ -456,7 +448,7 @@ class ShiftResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            RelationManagers\PhotosRelationManager::class,
         ];
     }
 

@@ -25,7 +25,7 @@ class Expense extends Model
         'expensable_type',
         'type',
         'amount',
-        'receipt_photo',
+        // удалил 'receipt_photo',
         'description',
         'custom_type',
     ];
@@ -37,7 +37,7 @@ class Expense extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['expensable_id', 'expensable_type', 'type', 'custom_type', 'amount', 'receipt_photo', 'description'])
+            ->logOnly(['expensable_id', 'expensable_type', 'type', 'custom_type', 'amount', 'description'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->dontLogIfAttributesChangedOnly(['updated_at'])
@@ -64,6 +64,16 @@ class Expense extends Model
             'has_receipt' => !empty($this->receipt_photo) ? 'Есть чек' : 'Чека нет',
             'financial_operation' => true,
         ]);
+    }
+
+    public function photos()
+    {
+        return $this->morphMany(Photo::class, 'photoable');
+    }
+
+    public function getReceiptPhotoAttribute()
+    {
+        return $this->photos()->where('photo_type', Photo::TYPE_EXPENSE)->first();
     }
 
     public function expensable()

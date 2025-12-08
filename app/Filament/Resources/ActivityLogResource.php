@@ -63,6 +63,11 @@ class ActivityLogResource extends Resource
                         'App\\Models\\Compensation' => '💸 Компенсация',
                         'App\\Models\\ShiftExpense' => '🧾 Расход смены',
                         'App\\Models\\Contractor' => '🏢 Подрядчик',
+                        'App\\Models\\ContractorWorker' => '👷 Работник подрядчика',
+                        'App\\Models\\MassPersonnelReport' => '👥 Отчет масс. перс.',
+                        'App\\Models\\VisitedLocation' => '📍 Посещенная локация',
+                        'App\\Models\\ShiftPhoto' => '📸 Фотография смены',
+                        'App\\Models\\WorkRequestStatus' => '🚩 Статус заявки',
                         default => class_basename($state),
                     })
                     ->searchable(),
@@ -103,6 +108,12 @@ class ActivityLogResource extends Resource
                         'App\\Models\\WorkRequest' => '📄 Заявки',
                         'App\\Models\\Compensation' => '💸 Компенсации',
                         'App\\Models\\ShiftExpense' => '🧾 Расходы смен',
+                        'App\\Models\\Contractor' => '🏢 Подрядчики',
+                        'App\\Models\\ContractorWorker' => '👷 Работники подрядчиков',
+                        'App\\Models\\MassPersonnelReport' => '👥 Отчеты масс. перс.',
+                        'App\\Models\\VisitedLocation' => '📍 Посещенные локации',
+                        'App\\Models\\ShiftPhoto' => '📸 Фотографии смен',
+                        'App\\Models\\WorkRequestStatus' => '🚩 Статусы заявок',
                     ])
                     ->multiple(),
                     

@@ -17,9 +17,9 @@ class PurposeTemplateResource extends Resource
 {
     protected static ?string $model = PurposeTemplate::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-document-duplicate';
+    protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
     
-    protected static ?string $navigationGroup = 'Справочники';
+    protected static ?string $navigationGroup = '⚙️ Справочники и настройки';
     
     protected static ?string $navigationLabel = 'Шаблоны назначений';
     
@@ -27,7 +27,7 @@ class PurposeTemplateResource extends Resource
     
     protected static ?string $pluralModelLabel = 'Шаблоны назначений';
     
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 60;
 
     public static function form(Form $form): Form
     {

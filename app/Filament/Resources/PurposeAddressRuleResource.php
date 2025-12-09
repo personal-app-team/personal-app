@@ -14,13 +14,13 @@ class PurposeAddressRuleResource extends Resource
 {
     protected static ?string $model = PurposeAddressRule::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-map-pin';
+    protected static ?string $navigationIcon = 'heroicon-o-map';
     
-    protected static ?string $navigationGroup = 'Управление проектами';
+    protected static ?string $navigationGroup = '🏗️ Проекты и геолокации';
     
     protected static ?string $navigationLabel = 'Правила по адресам';
     
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 50;
 
     protected static ?string $modelLabel = 'правило по адресу';
     protected static ?string $pluralModelLabel = 'Правила по адресам';

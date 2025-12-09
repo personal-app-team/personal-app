@@ -14,10 +14,10 @@ class DepartmentResource extends Resource
 {
     protected static ?string $model = Department::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-building-office';
-    protected static ?string $navigationGroup = 'Организация';
+    protected static ?string $navigationIcon = 'heroicon-o-users';
+    protected static ?string $navigationGroup = '👥 Управление персоналом';
     protected static ?string $navigationLabel = 'Отделы';
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 10;
 
     protected static ?string $modelLabel = 'отдел';
     protected static ?string $pluralModelLabel = 'Отделы';

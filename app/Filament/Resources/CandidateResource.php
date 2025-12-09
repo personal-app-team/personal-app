@@ -17,10 +17,10 @@ class CandidateResource extends Resource
 {
     protected static ?string $model = Candidate::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-user';
-    protected static ?string $navigationGroup = 'Подбор персонала';
+    protected static ?string $navigationIcon = 'heroicon-o-briefcase';
+    protected static ?string $navigationGroup = '🎯 Подбор персонала';
     protected static ?string $navigationLabel = 'Кандидаты';
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 20;
 
     protected static ?string $modelLabel = 'кандидат';
     protected static ?string $pluralModelLabel = 'Кандидаты';

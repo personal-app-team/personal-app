@@ -14,13 +14,13 @@ class PurposeResource extends Resource
 {
     protected static ?string $model = Purpose::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-tag';
+    protected static ?string $navigationIcon = 'heroicon-o-map';
     
-    protected static ?string $navigationGroup = 'Управление проектами';
+    protected static ?string $navigationGroup = '🏗️ Проекты и геолокации';
     
     protected static ?string $navigationLabel = 'Назначения';
     
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 50;
 
     // ДОБАВЛЯЕМ РУССКИЕ LABELS
     protected static ?string $modelLabel = 'назначение';

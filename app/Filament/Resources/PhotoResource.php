@@ -18,9 +18,9 @@ class PhotoResource extends Resource
     protected static ?string $model = Photo::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-photo';
-    protected static ?string $navigationGroup = 'Контент и медиа';
+    protected static ?string $navigationGroup = '⚙️ Справочники и настройки';
     protected static ?string $navigationLabel = 'Фотографии';
-    protected static ?int $navigationSort = 50;
+    protected static ?int $navigationSort = 60;
 
     protected static ?string $modelLabel = 'фотография';
     protected static ?string $pluralModelLabel = 'Фотографии';

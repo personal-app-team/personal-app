@@ -14,10 +14,10 @@ class AddressTemplateResource extends Resource
 {
     protected static ?string $model = AddressTemplate::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-document-duplicate';
-    protected static ?string $navigationGroup = 'Справочники';
+    protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
+    protected static ?string $navigationGroup = '⚙️ Справочники и настройки';
     protected static ?string $navigationLabel = 'Шаблоны адресов';
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 60;
 
     protected static ?string $modelLabel = 'шаблон адреса';
     protected static ?string $pluralModelLabel = 'Шаблоны адресов';

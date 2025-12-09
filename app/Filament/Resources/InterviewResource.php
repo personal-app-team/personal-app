@@ -17,10 +17,10 @@ class InterviewResource extends Resource
 {
     protected static ?string $model = Interview::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-left-right';
-    protected static ?string $navigationGroup = 'Подбор персонала';
+    protected static ?string $navigationIcon = 'heroicon-o-briefcase';
+    protected static ?string $navigationGroup = '🎯 Подбор персонала';
     protected static ?string $navigationLabel = 'Собеседования';
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 20;
 
     protected static ?string $modelLabel = 'собеседование';
     protected static ?string $pluralModelLabel = 'Собеседования';

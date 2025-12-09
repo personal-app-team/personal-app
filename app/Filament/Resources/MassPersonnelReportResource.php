@@ -23,10 +23,10 @@ class MassPersonnelReportResource extends Resource
 {
     protected static ?string $model = MassPersonnelReport::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-user-group';
-    protected static ?string $navigationGroup = 'Управление персоналом';
+    protected static ?string $navigationIcon = 'heroicon-o-users';
+    protected static ?string $navigationGroup = '👥 Управление персоналом';
     protected static ?string $navigationLabel = 'Отчеты по массовому персоналу';
-    protected static ?int $navigationSort = 20;
+    protected static ?int $navigationSort = 10;
 
     protected static ?string $modelLabel = 'отчет по массовому персоналу';
     protected static ?string $pluralModelLabel = 'Отчеты по массовому персоналу';

@@ -16,10 +16,10 @@ class WorkRequestStatusResource extends Resource
 {
     protected static ?string $model = WorkRequestStatus::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-flag';
-    protected static ?string $navigationGroup = 'Заявки на работы';
+    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
+    protected static ?string $navigationGroup = '📊 Учет работ';
     protected static ?string $navigationLabel = 'История статусов';
-    protected static ?int $navigationSort = 40;
+    protected static ?int $navigationSort = 30;
 
     protected static ?string $modelLabel = 'статус заявки';
     protected static ?string $pluralModelLabel = 'История статусов заявок';

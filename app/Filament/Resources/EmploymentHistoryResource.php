@@ -18,10 +18,10 @@ class EmploymentHistoryResource extends Resource
 {
     protected static ?string $model = EmploymentHistory::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-briefcase';
-    protected static ?string $navigationGroup = 'Управление персоналом';
+    protected static ?string $navigationIcon = 'heroicon-o-users';
+    protected static ?string $navigationGroup = '👥 Управление персоналом';
     protected static ?string $navigationLabel = 'История трудоустройства';
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 10;
 
     protected static ?string $modelLabel = 'запись трудоустройства';
     protected static ?string $pluralModelLabel = 'История трудоустройства';

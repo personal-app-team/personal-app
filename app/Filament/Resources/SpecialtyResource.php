@@ -14,10 +14,10 @@ class SpecialtyResource extends Resource
 {
     protected static ?string $model = Specialty::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-academic-cap';
-    protected static ?string $navigationGroup = 'Справочники';
+    protected static ?string $navigationIcon = 'heroicon-o-wrench-screwdriver';
+    protected static ?string $navigationGroup = '⚙️ Справочники и настройки';
     protected static ?string $navigationLabel = 'Специальности';
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 60;
 
     protected static ?string $modelLabel = 'специальность';
     protected static ?string $pluralModelLabel = 'Специальности';

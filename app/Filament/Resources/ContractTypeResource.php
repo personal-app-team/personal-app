@@ -14,10 +14,10 @@ class ContractTypeResource extends Resource
 {
     protected static ?string $model = ContractType::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-document-text';
-    protected static ?string $navigationGroup = 'Справочники';
+    protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
+    protected static ?string $navigationGroup = '⚙️ Справочники и настройки';
     protected static ?string $navigationLabel = 'Типы договоров';
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 60;
 
     protected static ?string $modelLabel = 'тип договора';
     protected static ?string $pluralModelLabel = 'Типы договоров';

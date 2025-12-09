@@ -17,10 +17,10 @@ class VisitedLocationResource extends Resource
 {
     protected static ?string $model = VisitedLocation::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-map-pin';
-    protected static ?string $navigationGroup = 'Геолокации и фото';
+    protected static ?string $navigationIcon = 'heroicon-o-map';
+    protected static ?string $navigationGroup = '🏗️ Проекты и геолокации';
     protected static ?string $navigationLabel = 'Посещенные локации';
-    protected static ?int $navigationSort = 30;
+    protected static ?int $navigationSort = 50;
 
     protected static ?string $modelLabel = 'посещенная локация';
     protected static ?string $pluralModelLabel = 'Посещенные локации';

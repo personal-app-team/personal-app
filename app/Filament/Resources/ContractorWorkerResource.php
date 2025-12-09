@@ -17,12 +17,12 @@ class ContractorWorkerResource extends Resource
 {
     protected static ?string $model = ContractorWorker::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-user-group';
+    protected static ?string $navigationIcon = 'heroicon-o-users';
     protected static ?string $navigationLabel = 'Работники массового персонала';
     protected static ?string $modelLabel = 'работник массового персонала';
     protected static ?string $pluralModelLabel = 'Работники массового персонала';
-    protected static ?string $navigationGroup = 'Массовый персонал';
-    protected static ?int $navigationSort = 2;
+    protected static ?string $navigationGroup = '👥 Управление персоналом';
+    protected static ?int $navigationSort = 10;
 
     public static function form(Form $form): Form
     {

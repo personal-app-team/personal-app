@@ -18,10 +18,10 @@ class PositionChangeRequestResource extends Resource
 {
     protected static ?string $model = PositionChangeRequest::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-arrow-path';
-    protected static ?string $navigationGroup = 'Управление персоналом';
+    protected static ?string $navigationIcon = 'heroicon-o-users';
+    protected static ?string $navigationGroup = '👥 Управление персоналом';
     protected static ?string $navigationLabel = 'Запросы на изменение';
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 10;
 
     protected static ?string $modelLabel = 'запрос на изменение';
     protected static ?string $pluralModelLabel = 'Запросы на изменение';

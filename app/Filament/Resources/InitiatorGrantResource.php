@@ -17,12 +17,12 @@ class InitiatorGrantResource extends Resource
 {
     protected static ?string $model = InitiatorGrant::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-key';
+    protected static ?string $navigationIcon = 'heroicon-o-users';
 
     // ДОБАВЛЯЕМ РУССКИЕ LABELS И ГРУППУ
-    protected static ?string $navigationGroup = 'Управление персоналом';
+    protected static ?string $navigationGroup = '👥 Управление персоналом';
     protected static ?string $navigationLabel = 'Права инициаторов';
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 10;
 
     protected static ?string $modelLabel = 'право инициатора';
     protected static ?string $pluralModelLabel = 'Права инициаторов';

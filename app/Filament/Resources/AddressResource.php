@@ -16,11 +16,11 @@ class AddressResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-map-pin';
     
-    protected static ?string $navigationGroup = 'Управление проектами';
+    protected static ?string $navigationGroup = '🏗️ Проекты и геолокации';
     
     protected static ?string $navigationLabel = 'Адреса';
     
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 50;
 
     // ДОБАВЛЯЕМ РУССКИЕ LABELS
     protected static ?string $modelLabel = 'адрес';

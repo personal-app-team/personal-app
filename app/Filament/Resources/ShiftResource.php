@@ -17,9 +17,9 @@ class ShiftResource extends Resource
     protected static ?string $model = Shift::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-clock';
-    protected static ?string $navigationGroup = 'Учет работ';
+    protected static ?string $navigationGroup = '📊 Учет работ';
     protected static ?string $navigationLabel = 'Смены';
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 30;
     protected static ?string $modelLabel = 'смена';
     protected static ?string $pluralModelLabel = 'Смены';
 

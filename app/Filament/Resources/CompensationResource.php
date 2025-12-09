@@ -20,12 +20,12 @@ class CompensationResource extends Resource
 {
     protected static ?string $model = Compensation::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-gift';
+    protected static ?string $navigationIcon = 'heroicon-o-banknotes';
     protected static ?string $navigationLabel = 'Компенсации';
     protected static ?string $modelLabel = 'Компенсация';
     protected static ?string $pluralModelLabel = 'Компенсации';
-    protected static ?string $navigationGroup = 'Финансы';
-    protected static ?int $navigationSort = 1;
+    protected static ?string $navigationGroup = '💰 Финансы';
+    protected static ?int $navigationSort = 40;
 
     public static function form(Form $form): Form
     {

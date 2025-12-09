@@ -19,12 +19,12 @@ class ExpenseResource extends Resource
 {
     protected static ?string $model = Expense::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-banknotes';
+    protected static ?string $navigationIcon = 'heroicon-o-credit-card';
     protected static ?string $navigationLabel = 'Расходы';
     protected static ?string $modelLabel = 'расход';
     protected static ?string $pluralModelLabel = 'Расходы';
-    protected static ?string $navigationGroup = 'Финансы';
-    protected static ?int $navigationSort = 2;
+    protected static ?string $navigationGroup = '💰 Финансы';
+    protected static ?int $navigationSort = 40;
 
     public static function form(Form $form): Form
     {

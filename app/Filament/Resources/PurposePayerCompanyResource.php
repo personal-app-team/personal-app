@@ -14,13 +14,13 @@ class PurposePayerCompanyResource extends Resource
 {
     protected static ?string $model = PurposePayerCompany::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-banknotes';
+    protected static ?string $navigationIcon = 'heroicon-o-map';
     
-    protected static ?string $navigationGroup = 'Управление проектами';
+    protected static ?string $navigationGroup = '🏗️ Проекты и геолокации';
     
     protected static ?string $navigationLabel = 'Варианты оплаты';
     
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 50;
 
     // ДОБАВЛЯЕМ РУССКИЕ LABELS
     protected static ?string $modelLabel = 'вариант оплаты';

@@ -18,10 +18,10 @@ class RecruitmentRequestResource extends Resource
 {
     protected static ?string $model = RecruitmentRequest::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-document-text';
-    protected static ?string $navigationGroup = 'Подбор персонала';
+    protected static ?string $navigationIcon = 'heroicon-o-briefcase';
+    protected static ?string $navigationGroup = '🎯 Подбор персонала';
     protected static ?string $navigationLabel = 'Заявки на подбор';
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 20;
 
     protected static ?string $modelLabel = 'заявка на подбор';
     protected static ?string $pluralModelLabel = 'Заявки на подбор';

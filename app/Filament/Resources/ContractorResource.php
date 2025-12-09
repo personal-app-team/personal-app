@@ -15,10 +15,10 @@ class ContractorResource extends Resource
 {
     protected static ?string $model = Contractor::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-building-office';
-    protected static ?string $navigationGroup = 'Управление персоналом';
+    protected static ?string $navigationIcon = 'heroicon-o-building-office-2';
+    protected static ?string $navigationGroup = '👥 Управление персоналом';
     protected static ?string $navigationLabel = 'Подрядчики';
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 10;
 
     protected static ?string $modelLabel = 'подрядчик';
     protected static ?string $pluralModelLabel = 'Подрядчики';

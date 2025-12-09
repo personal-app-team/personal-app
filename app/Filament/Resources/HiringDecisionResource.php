@@ -18,10 +18,10 @@ class HiringDecisionResource extends Resource
 {
     protected static ?string $model = HiringDecision::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-document-check';
-    protected static ?string $navigationGroup = 'Подбор персонала';
+    protected static ?string $navigationIcon = 'heroicon-o-briefcase';
+    protected static ?string $navigationGroup = '🎯 Подбор персонала';
     protected static ?string $navigationLabel = 'Решения о приеме';
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 20;
 
     protected static ?string $modelLabel = 'решение о приеме';
     protected static ?string $pluralModelLabel = 'Решения о приеме';

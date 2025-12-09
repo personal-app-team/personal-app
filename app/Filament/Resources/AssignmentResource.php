@@ -19,9 +19,9 @@ class AssignmentResource extends Resource
     protected static ?string $model = Assignment::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-user-plus';
-    protected static ?string $navigationGroup = 'Управление персоналом';
+    protected static ?string $navigationGroup = '👥 Управление персоналом';
     protected static ?string $navigationLabel = 'Назначения на работы';
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 10;
     protected static ?string $modelLabel = 'назначение на работы';
     protected static ?string $pluralModelLabel = 'Назначения на работы';
 

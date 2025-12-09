@@ -14,13 +14,13 @@ class ProjectResource extends Resource
 {
     protected static ?string $model = Project::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-folder';
+    protected static ?string $navigationIcon = 'heroicon-o-building-office';
     
-    protected static ?string $navigationGroup = 'Управление проектами';
+    protected static ?string $navigationGroup = '🏗️ Проекты и геолокации';
     
     protected static ?string $navigationLabel = 'Проекты';
     
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 50;
 
     protected static ?string $modelLabel = 'проект';
     protected static ?string $pluralModelLabel = 'Проекты';

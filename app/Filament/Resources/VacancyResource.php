@@ -11,17 +11,15 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class VacancyResource extends Resource
 {
     protected static ?string $model = Vacancy::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-briefcase';
-    protected static ?string $navigationGroup = 'Подбор персонала';
+    protected static ?string $navigationGroup = '🎯 Подбор персонала';
     protected static ?string $navigationLabel = 'Вакансии';
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 20;
 
     protected static ?string $modelLabel = 'вакансия';
     protected static ?string $pluralModelLabel = 'Вакансии';
@@ -91,10 +89,13 @@ class VacancyResource extends Resource
                     ->badge()
                     ->color(fn ($state) => $state === 'active' ? 'success' : 'danger')
                     ->formatStateUsing(fn ($state) => $state === 'active' ? 'Активна' : 'Закрыта'),
-                Tables\Columns\TextColumn::make('recruitmentRequests.count')
-                    ->label('Кол-во заявок')
+                
+                // ИСПРАВЛЕННАЯ КОЛОНКА - убираем сортировку
+                Tables\Columns\TextColumn::make('recruitment_requests_count')
+                    ->label('Заявок')
                     ->counts('recruitmentRequests')
-                    ->sortable(),
+                    ->sortable(false), // Явно отключаем сортировку
+                
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Создана')
                     ->dateTime('d.m.Y H:i')
@@ -154,10 +155,11 @@ class VacancyResource extends Resource
     public static function getRelations(): array
     {
         return [
-            // RelationManagers\TasksRelationManager::class,
-            // RelationManagers\RequirementsRelationManager::class, 
-            // RelationManagers\ConditionsRelationManager::class,
-            // RelationManagers\RecruitmentRequestsRelationManager::class,
+            // Правильные имена RelationManagers
+            RelationManagers\VacancyTasksRelationManager::class,
+            RelationManagers\VacancyRequirementsRelationManager::class, 
+            RelationManagers\VacancyConditionsRelationManager::class,
+            RelationManagers\RecruitmentRequestsRelationManager::class,
         ];
     }
 

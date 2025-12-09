@@ -14,12 +14,12 @@ class RoleResource extends Resource
 {
     protected static ?string $model = Role::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-shield-check';
+    protected static ?string $navigationIcon = 'heroicon-o-key';
     
     // ДОБАВЛЯЕМ РУССКИЕ LABELS И ГРУППУ
-    protected static ?string $navigationGroup = 'Управление доступом';
+    protected static ?string $navigationGroup = '⚙️ Справочники и настройки';
     protected static ?string $navigationLabel = 'Роли';
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 60;
 
     protected static ?string $modelLabel = 'роль';
     protected static ?string $pluralModelLabel = 'Роли';

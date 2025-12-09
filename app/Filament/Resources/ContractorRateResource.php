@@ -16,10 +16,10 @@ class ContractorRateResource extends Resource
 {
     protected static ?string $model = ContractorRate::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-currency-dollar';
-    protected static ?string $navigationGroup = 'Справочники';
+    protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
+    protected static ?string $navigationGroup = '⚙️ Справочники и настройки';
     protected static ?string $navigationLabel = 'Ставки подрядчиков';
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 60;
 
     protected static ?string $modelLabel = 'ставка подрядчика';
     protected static ?string $pluralModelLabel = 'Ставки подрядчиков';

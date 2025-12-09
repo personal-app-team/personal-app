@@ -14,11 +14,11 @@ class WorkTypeResource extends Resource
 {
     protected static ?string $model = WorkType::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-wrench-screwdriver';
+    protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
     
-    protected static ?string $navigationGroup = 'Справочники';
+    protected static ?string $navigationGroup = '⚙️ Справочники и настройки';
     protected static ?string $navigationLabel = 'Виды работ';
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 60;
 
     protected static ?string $modelLabel = 'вид работ';
     protected static ?string $pluralModelLabel = 'Виды работ';

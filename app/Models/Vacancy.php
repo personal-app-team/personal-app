@@ -4,10 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Vacancy extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'title',
@@ -23,36 +27,52 @@ class Vacancy extends Model
         'status' => 'string',
     ];
 
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['title', 'status', 'employment_type', 'department_id'])
+            ->logOnlyDirty()
+            ->setDescriptionForEvent(function(string $eventName) {
+                return match($eventName) {
+                    'created' => 'Вакансия создана',
+                    'updated' => 'Вакансия изменена',
+                    'deleted' => 'Вакансия удалена',
+                    default => "Вакансия {$eventName}",
+                };
+            })
+            ->useLogName('vacancy');
+    }
+
     // === СВЯЗИ ===
 
-    public function department()
+    public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
     }
 
-    public function createdBy()
+    public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_id');
     }
 
-    public function tasks()
+    public function recruitmentRequests(): HasMany
     {
-        return $this->hasMany(VacancyTask::class);
+        return $this->hasMany(RecruitmentRequest::class);
     }
 
-    public function requirements()
-    {
-        return $this->hasMany(VacancyRequirement::class);
-    }
-
-    public function conditions()
+    public function vacancyConditions(): HasMany
     {
         return $this->hasMany(VacancyCondition::class);
     }
 
-    public function recruitmentRequests()
+    public function vacancyRequirements(): HasMany
     {
-        return $this->hasMany(RecruitmentRequest::class);
+        return $this->hasMany(VacancyRequirement::class);
+    }
+
+    public function vacancyTasks(): HasMany
+    {
+        return $this->hasMany(VacancyTask::class);
     }
 
     // === SCOPES ===
@@ -87,6 +107,11 @@ class Vacancy extends Model
     public function reopen()
     {
         $this->update(['status' => 'active']);
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === 'active';
     }
 
     public function getActiveRecruitmentRequestsCount()

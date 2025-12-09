@@ -19,9 +19,9 @@ class WorkRequestResource extends Resource
     protected static ?string $model = WorkRequest::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
-    protected static ?string $navigationGroup = 'Учет работ';
+    protected static ?string $navigationGroup = '📊 Учет работ';
     protected static ?string $navigationLabel = 'Заявки';
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 30;
 
     protected static ?string $modelLabel = 'заявка';
     protected static ?string $pluralModelLabel = 'Заявки';

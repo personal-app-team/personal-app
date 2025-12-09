@@ -14,10 +14,10 @@ class TaxStatusResource extends Resource
 {
     protected static ?string $model = TaxStatus::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-calculator';
-    protected static ?string $navigationGroup = 'Справочники';
+    protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
+    protected static ?string $navigationGroup = '⚙️ Справочники и настройки';
     protected static ?string $navigationLabel = 'Налоговые статусы';
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 60;
 
     protected static ?string $modelLabel = 'налоговый статус';
     protected static ?string $pluralModelLabel = 'Налоговые статусы';

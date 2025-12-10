@@ -13,31 +13,50 @@ class Expense extends Model
 {
     use HasFactory, LogsActivity, CausesActivity;
 
+    // Имя таблицы
+    protected $table = 'expenses';
+
     // === ТИПЫ РАСХОДОВ ===
     const TYPE_TAXI = 'taxi';
     const TYPE_MATERIALS = 'materials';
     const TYPE_FOOD = 'food';
     const TYPE_ACCOMMODATION = 'accommodation';
     const TYPE_OTHER = 'other';
+    const TYPE_CUSTOM = 'custom';
+    
+    // Статусы расходов
+    const STATUS_PENDING = 'pending';
+    const STATUS_APPROVED = 'approved';
+    const STATUS_REJECTED = 'rejected';
+    const STATUS_PAID = 'paid';
 
     protected $fillable = [
         'expensable_id',
         'expensable_type',
+        'name', // название расхода (из старой таблицы shift_expenses)
         'type',
         'amount',
-        // удалил 'receipt_photo',
         'description',
         'custom_type',
+        'status',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
+
+    protected $attributes = [
+        'status' => self::STATUS_PENDING,
+        'type' => self::TYPE_OTHER,
+        'amount' => 0,
     ];
 
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['expensable_id', 'expensable_type', 'type', 'custom_type', 'amount', 'description'])
+            ->logOnly(['expensable_id', 'expensable_type', 'name', 'type', 'custom_type', 'amount', 'description', 'status'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->dontLogIfAttributesChangedOnly(['updated_at'])
@@ -61,19 +80,13 @@ class Expense extends Model
             'amount_formatted' => number_format($this->amount, 2) . ' ₽',
             'type_display' => $this->type_display,
             'expensable_info' => $this->expensable_info,
-            'has_receipt' => !empty($this->receipt_photo) ? 'Есть чек' : 'Чека нет',
-            'financial_operation' => true,
+            'status_display' => $this->status_display,
         ]);
     }
 
     public function photos()
     {
         return $this->morphMany(Photo::class, 'photoable');
-    }
-
-    public function getReceiptPhotoAttribute()
-    {
-        return $this->photos()->where('photo_type', Photo::TYPE_EXPENSE)->first();
     }
 
     public function expensable()
@@ -96,7 +109,7 @@ class Expense extends Model
 
     public function getTypeDisplayAttribute(): string
     {
-        if ($this->type === 'custom' && $this->custom_type) {
+        if ($this->type === self::TYPE_CUSTOM && $this->custom_type) {
             return $this->custom_type;
         }
         
@@ -106,8 +119,19 @@ class Expense extends Model
             self::TYPE_FOOD => '🍔 Питание',
             self::TYPE_ACCOMMODATION => '🏨 Проживание',
             self::TYPE_OTHER => '📄 Прочие расходы',
-            'custom' => $this->custom_type ?? 'Пользовательский',
+            self::TYPE_CUSTOM => $this->custom_type ?? 'Пользовательский',
             default => $this->type,
+        };
+    }
+
+    public function getStatusDisplayAttribute(): string
+    {
+        return match($this->status) {
+            self::STATUS_PENDING => '⏳ Ожидает',
+            self::STATUS_APPROVED => '✅ Подтвержден',
+            self::STATUS_REJECTED => '❌ Отклонен',
+            self::STATUS_PAID => '💰 Оплачен',
+            default => $this->status,
         };
     }
 
@@ -119,13 +143,23 @@ class Expense extends Model
             self::TYPE_FOOD => 'Питание',
             self::TYPE_ACCOMMODATION => 'Проживание',
             self::TYPE_OTHER => 'Прочие расходы',
-            'custom' => '📝 Пользовательский тип',
+            self::TYPE_CUSTOM => '📝 Пользовательский тип',
+        ];
+    }
+
+    public static function getStatusOptions(): array
+    {
+        return [
+            self::STATUS_PENDING => 'Ожидает',
+            self::STATUS_APPROVED => 'Подтвержден',
+            self::STATUS_REJECTED => 'Отклонен',
+            self::STATUS_PAID => 'Оплачен',
         ];
     }
 
     public function isCustomType(): bool
     {
-        return $this->type === 'custom';
+        return $this->type === self::TYPE_CUSTOM;
     }
 
     public static function getCustomTypes(): array
@@ -196,16 +230,62 @@ class Expense extends Model
 
     public function scopeCustom($query)
     {
-        return $query->where('type', 'custom');
+        return $query->where('type', self::TYPE_CUSTOM);
     }
 
-    public function scopeWithReceipt($query)
+    public function scopePending($query)
     {
-        return $query->whereNotNull('receipt_photo');
+        return $query->where('status', self::STATUS_PENDING);
     }
 
-    public function scopeWithoutReceipt($query)
+    public function scopeApproved($query)
     {
-        return $query->whereNull('receipt_photo');
+        return $query->where('status', self::STATUS_APPROVED);
+    }
+
+    public function scopeRejected($query)
+    {
+        return $query->where('status', self::STATUS_REJECTED);
+    }
+
+    public function scopePaid($query)
+    {
+        return $query->where('status', self::STATUS_PAID);
+    }
+
+    // Метод для подтверждения расхода
+    public function approve($reason = null)
+    {
+        $this->update([
+            'status' => self::STATUS_APPROVED,
+        ]);
+        
+        activity()
+            ->performedOn($this)
+            ->log('Расход подтвержден' . ($reason ? ": {$reason}" : ''));
+    }
+
+    // Метод для отклонения расхода
+    public function reject($reason = null)
+    {
+        $this->update([
+            'status' => self::STATUS_REJECTED,
+        ]);
+        
+        activity()
+            ->performedOn($this)
+            ->log('Расход отклонен' . ($reason ? ": {$reason}" : ''));
+    }
+
+    // Метод для отметки как оплаченный
+    public function markAsPaid()
+    {
+        $this->update([
+            'status' => self::STATUS_PAID,
+        ]);
+        
+        activity()
+            ->performedOn($this)
+            ->log('Расход отмечен как оплаченный');
     }
 }

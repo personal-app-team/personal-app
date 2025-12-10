@@ -29,9 +29,9 @@ class TaxStatus extends Model
         return $this->belongsTo(ContractType::class);
     }
 
-    public function users()
+    public function employmentHistories()
     {
-        return $this->hasMany(User::class);
+        return $this->hasMany(EmploymentHistory::class);
     }
 
     public function contractors()

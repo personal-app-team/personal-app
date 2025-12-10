@@ -25,10 +25,10 @@ class Project extends Model
 
     // === ИСПРАВЛЕННЫЕ СВЯЗИ ===
     
-    // У нас больше нет address_programs таблицы, используем addresses
     public function addresses()
     {
-        return $this->belongsToMany(Address::class);
+        return $this->belongsToMany(Address::class)
+                    ->using(AddressProject::class);
     }
 
     public function purposes()

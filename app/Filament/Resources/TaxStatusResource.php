@@ -123,9 +123,9 @@ class TaxStatusResource extends Resource
                     ->falseColor('gray')
                     ->sortable(),
                     
-                Tables\Columns\TextColumn::make('users_count')
-                    ->label('Пользователей')
-                    ->counts('users')
+                Tables\Columns\TextColumn::make('employment_histories_count')
+                    ->label('Записей в истории')
+                    ->counts('employmentHistories')
                     ->sortable()
                     ->badge()
                     ->color(fn ($state) => $state > 0 ? 'primary' : 'gray'),

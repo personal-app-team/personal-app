@@ -156,15 +156,12 @@ class VisitedLocationResource extends Resource
                     ->label('Тип объекта')
                     ->badge()
                     ->formatStateUsing(function ($state, $record) {
-                        // Безопасная обработка для пустой таблицы
-                        if (!$record) {
-                            return '❓ Нет данных';
-                        }
-                        
+                        // Полностью безопасная обработка
                         if (empty($state) || !is_string($state)) {
                             return '🗂️ Архив';
                         }
                         
+                        // Проверяем существование класса
                         if (!class_exists($state)) {
                             return '🗄️ Удалено: ' . class_basename($state);
                         }
@@ -191,19 +188,17 @@ class VisitedLocationResource extends Resource
                 Tables\Columns\TextColumn::make('visitable_id')
                     ->label('Объект')
                     ->formatStateUsing(function ($state, $record) {
-                        // Безопасная обработка для пустой таблицы
-                        if (!$record) {
-                            return '—';
-                        }
-                        
+                        // Если тип пустой или нестрока
                         if (empty($record->visitable_type) || !is_string($record->visitable_type)) {
                             return '#' . $state . ' (архив)';
                         }
                         
+                        // Если класс не существует
                         if (!class_exists($record->visitable_type)) {
                             return '#' . $state . ' (' . class_basename($record->visitable_type) . ' удален)';
                         }
                         
+                        // Пробуем получить связанную модель
                         try {
                             $visitable = $record->visitable;
                             if (!$visitable) {
@@ -222,10 +217,7 @@ class VisitedLocationResource extends Resource
                         }
                     })
                     ->url(function ($record) {
-                        if (!$record) {
-                            return null;
-                        }
-                        
+                        // Безопасная генерация URL
                         if (empty($record->visitable_type) || !is_string($record->visitable_type) || !class_exists($record->visitable_type)) {
                             return null;
                         }
@@ -254,7 +246,7 @@ class VisitedLocationResource extends Resource
                     ->searchable()
                     ->limit(50)
                     ->tooltip(function ($record) {
-                        return $record ? $record->address : null;
+                        return $record->address;
                     }),
                     
                 Tables\Columns\TextColumn::make('duration_minutes')
@@ -278,9 +270,7 @@ class VisitedLocationResource extends Resource
                     ->numeric()
                     ->sortable()
                     ->alignCenter()
-                    ->visible(fn ($record): bool => 
-                        $record && $record->visitable_type === 'App\\Models\\MassPersonnelReport'
-                    ),
+                    ->visible(fn ($record) => $record->visitable_type === 'App\\Models\\MassPersonnelReport'),
                     
                 Tables\Columns\TextColumn::make('photos_count')
                     ->label('Фото')
@@ -339,21 +329,20 @@ class VisitedLocationResource extends Resource
                     ->label('Фото')
                     ->icon('heroicon-o-photo')
                     ->color('gray')
-                    ->url(fn ($record) => $record ? self::getUrl('edit', [$record->id]) . '?activeRelationManager=0' : null),
+                    ->url(fn ($record) => self::getUrl('edit', [$record->id]) . '?activeRelationManager=0'),
                     
                 Tables\Actions\Action::make('open_map')
                     ->label('Карта')
                     ->icon('heroicon-o-map')
                     ->color('success')
                     ->url(function ($record) {
-                        if (!$record || !$record->latitude || !$record->longitude) {
-                            return null;
+                        if ($record->latitude && $record->longitude) {
+                            return "https://www.google.com/maps?q={$record->latitude},{$record->longitude}";
                         }
-                        
-                        return "https://www.google.com/maps?q={$record->latitude},{$record->longitude}";
+                        return null;
                     })
                     ->openUrlInNewTab()
-                    ->hidden(fn ($record): bool => !$record || !$record->latitude || !$record->longitude),
+                    ->hidden(fn ($record) => !$record->latitude || !$record->longitude),
                     
                 Tables\Actions\DeleteAction::make()
                     ->label('Удалить'),
@@ -391,32 +380,27 @@ class VisitedLocationResource extends Resource
     
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery()
-            ->orderBy('started_at', 'desc');
-
-        // Проверяем, есть ли записи перед загрузкой связей
-        if ($query->count() > 0) {
-            $query->with(['visitable' => function ($morphTo) {
+        return parent::getEloquentQuery()
+            ->with(['visitable' => function ($morphTo) {
                 $morphTo->morphWith([
                     \App\Models\Shift::class => ['user', 'workRequest'],
                     \App\Models\MassPersonnelReport::class => ['workRequest'],
                     \App\Models\Expense::class => ['category'],
                     \App\Models\ContractorWorker::class => ['contractor'],
                 ]);
-            }]);
-
-            // Фильтруем только валидные типы
-            $validTypes = [
-                'App\\Models\\Shift',
-                'App\\Models\\MassPersonnelReport',
-                'App\\Models\\Expense',
-                'App\\Models\\ContractorWorker',
-            ];
-            
-            $query->whereIn('visitable_type', $validTypes);
-        }
-
-        return $query;
+            }])
+            ->orderBy('started_at', 'desc')
+            ->when(function ($query) {
+                // Фильтруем только валидные типы
+                $validTypes = [
+                    'App\\Models\\Shift',
+                    'App\\Models\\MassPersonnelReport',
+                    'App\\Models\\Expense',
+                    'App\\Models\\ContractorWorker',
+                ];
+                
+                $query->whereIn('visitable_type', $validTypes);
+            });
     }
     
     public static function canAccess(): bool

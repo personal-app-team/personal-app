@@ -152,24 +152,24 @@ class AddressResource extends Resource
         ];
     }
 
-    public static function canAccess(): bool
-    {
-        return auth()->user()->hasPermissionTo('edit_database') || 
-            auth()->user()->hasPermissionTo('view_addresses');
-    }
+    // public static function canAccess(): bool
+    // {
+    //     return auth()->user()->hasPermissionTo('edit_database') || 
+    //         auth()->user()->hasPermissionTo('view_addresses');
+    // }
 
-    public static function canCreate(): bool
-    {
-        return auth()->user()->hasPermissionTo('edit_database');
-    }
+    // public static function canCreate(): bool
+    // {
+    //     return auth()->user()->hasPermissionTo('edit_database');
+    // }
 
-    public static function canEdit($record): bool
-    {
-        return auth()->user()->hasPermissionTo('edit_database');
-    }
+    // public static function canEdit($record): bool
+    // {
+    //     return auth()->user()->hasPermissionTo('edit_database');
+    // }
 
-    public static function canDelete($record): bool
-    {
-        return auth()->user()->hasPermissionTo('edit_database');
-    }
+    // public static function canDelete($record): bool
+    // {
+    //     return auth()->user()->hasPermissionTo('edit_database');
+    // }
 }

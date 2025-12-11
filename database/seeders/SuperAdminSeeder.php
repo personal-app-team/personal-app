@@ -16,37 +16,37 @@ class SuperAdminSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->command->info('🚀 Начинаем создание супер-администратора системы...');
-        
+        $this->command->info('🚀 Начинаем создание администратора системы...');
+
         // ШАГ 1: Создаем базовые справочники в правильном порядке
         $this->createBasicReferences();
-        
+
         // ШАГ 2: Создаем разрешения (только необходимые поля)
         $this->createPermissions();
-        
-        // ШАГ 3: Создаем роль супер-админа (без description)
-        $superAdminRole = $this->createSuperAdminRole();
-        
-        // ШАГ 4: Создаем пользователя (БЕЗ поля full_name)
+
+        // ШАГ 3: Создаем роль админа
+        $adminRole = $this->createAdminRole();
+
+        // ШАГ 4: Создаем пользователя
         $adminUser = $this->createAdminUser();
-        
+
         // ШАГ 5: Назначаем роль
-        $adminUser->assignRole($superAdminRole);
-        
+        $adminUser->assignRole($adminRole);
+
         // ШАГ 6: Создаем историю трудоустройства
         $this->createEmploymentHistory($adminUser);
-        
-        $this->command->info('🎉 СУПЕР-АДМИНИСТРАТОР СОЗДАН!');
+
+        $this->command->info('🎉 АДМИНИСТРАТОР СОЗДАН!');
         $this->command->info('📧 Email: admin@example.com');
         $this->command->info('🔑 Пароль: password123');
         $this->command->info('👔 Отдел: IT');
-        $this->command->info('👑 Роль: super-admin');
+        $this->command->info('👑 Роль: admin');
     }
-    
+
     private function createBasicReferences(): void
     {
         $this->command->info('📋 Создаем базовые справочники в правильном порядке...');
-        
+
         // 1. Сначала создаем ContractType (нужен для TaxStatus)
         $this->command->info('  1. Создаем ContractType...');
         $contractType = ContractType::firstOrCreate(
@@ -57,7 +57,7 @@ class SuperAdminSeeder extends Seeder
                 'is_active' => 1,
             ]
         );
-        
+
         // 2. Создаем TaxStatus (требует contract_type_id и tax_rate)
         $this->command->info('  2. Создаем TaxStatus...');
         $taxStatus = TaxStatus::firstOrCreate(
@@ -72,7 +72,7 @@ class SuperAdminSeeder extends Seeder
                 'is_default' => 1,
             ]
         );
-        
+
         // 3. Создаем Department
         $this->command->info('  3. Создаем Department...');
         $department = Department::firstOrCreate(
@@ -84,24 +84,24 @@ class SuperAdminSeeder extends Seeder
                 'is_active' => 1,
             ]
         );
-        
+
         $this->command->info('✅ Все базовые справочники созданы');
     }
-    
+
     private function createPermissions(): void
     {
         $this->command->info('🔐 Создаем системные разрешения...');
-        
+
         // Базовые разрешения для Filament (только существующие поля)
         $resources = [
             'user', 'role', 'permission', 'assignment', 'shift', 'work_request',
-            'candidate', 'vacancy', 'recruitment_request', 'interview', 
+            'candidate', 'vacancy', 'recruitment_request', 'interview',
             'hiring_decision', 'department', 'employment_history',
             'contractor', 'category', 'specialty', 'activity_log',
         ];
-        
+
         $actions = ['view_any', 'view', 'create', 'update', 'delete'];
-        
+
         foreach ($resources as $resource) {
             foreach ($actions as $action) {
                 Permission::firstOrCreate([
@@ -110,51 +110,51 @@ class SuperAdminSeeder extends Seeder
                 ]);
             }
         }
-        
+
         // Специальные разрешения (только существующие поля)
         Permission::firstOrCreate([
             'name' => 'access_filament',
             'guard_name' => 'web',
         ]);
-        
+
         Permission::firstOrCreate([
             'name' => 'view_reports',
             'guard_name' => 'web',
         ]);
-        
+
         $this->command->info('✅ Разрешения созданы: ' . Permission::count() . ' шт.');
     }
-    
-    private function createSuperAdminRole(): Role
+
+    private function createAdminRole(): Role
     {
-        $this->command->info('👑 Создаем роль супер-администратора...');
-        
+        $this->command->info('👑 Создаем роль администратора...');
+
         // Только существующие поля: name и guard_name
-        $superAdminRole = Role::firstOrCreate([
-            'name' => 'super-admin',
+        $adminRole = Role::firstOrCreate([
+            'name' => 'admin',
             'guard_name' => 'web',
         ]);
-        
+
         // Назначаем ВСЕ разрешения
-        $superAdminRole->syncPermissions(Permission::all());
-        
-        $this->command->info('✅ Роль super-admin создана с ' . $superAdminRole->permissions->count() . ' разрешениями');
-        
-        return $superAdminRole;
+        $adminRole->syncPermissions(Permission::all());
+
+        $this->command->info('✅ Роль admin создана с ' . $adminRole->permissions->count() . ' разрешениями');
+
+        return $adminRole;
     }
-    
+
     private function createAdminUser(): User
     {
         $this->command->info('👤 Создаем пользователя администратора...');
-        
+
         $adminUser = User::where('email', 'admin@example.com')->first();
-        
+
         if (!$adminUser) {
-            // Создаем нового пользователя БЕЗ поля full_name
+            // Создаем нового пользователя
             $adminUser = User::create([
                 'name' => 'Администратор',
                 'surname' => 'Системы',
-                'patronymic' => '', // Добавляем для корректного вычисления full_name
+                'patronymic' => '',
                 'email' => 'admin@example.com',
                 'password' => Hash::make('password123'),
                 'phone' => '+79999999999',
@@ -163,7 +163,7 @@ class SuperAdminSeeder extends Seeder
             ]);
             $this->command->info('✅ Пользователь создан');
         } else {
-            // Обновляем существующего БЕЗ поля full_name
+            // Обновляем существующего
             $adminUser->update([
                 'password' => Hash::make('password123'),
                 'name' => 'Администратор',
@@ -173,24 +173,24 @@ class SuperAdminSeeder extends Seeder
             ]);
             $this->command->info('⚠️ Пользователь уже существовал, обновлен');
         }
-        
+
         return $adminUser;
     }
-    
+
     private function createEmploymentHistory(User $user): void
     {
         $this->command->info('📝 Создаем историю трудоустройства...');
-        
+
         // Находим справочники
         $itDepartment = Department::where('name', 'IT')->first();
         $contractType = ContractType::where('name', 'Трудовой договор')->first();
         $taxStatus = TaxStatus::where('name', 'Резидент РФ')->first();
-        
+
         if (!$itDepartment || !$contractType || !$taxStatus) {
             $this->command->error('❌ Не удалось найти справочники для истории трудоустройства');
             return;
         }
-        
+
         // Создаем или обновляем историю трудоустройства
         EmploymentHistory::updateOrCreate(
             [
@@ -200,19 +200,19 @@ class SuperAdminSeeder extends Seeder
             [
                 'department_id' => $itDepartment->id,
                 'position' => 'Главный администратор системы',
-                'employment_form' => 'permanent', // Используем допустимое значение из enum
+                'employment_form' => 'permanent',
                 'contract_type_id' => $contractType->id,
                 'tax_status_id' => $taxStatus->id,
-                'payment_type' => 'salary', // Используем допустимое значение из enum
+                'payment_type' => 'salary',
                 'salary_amount' => 0,
                 'has_overtime' => 0,
-                'work_schedule' => '5/2', // Используем допустимое значение из enum
+                'work_schedule' => '5/2',
                 'start_date' => now()->subYear(),
-                'notes' => 'Супер-администратор системы. Создан автоматически.',
-                'created_by_id' => $user->id, // Обязательное поле
+                'notes' => 'Администратор системы. Создан автоматически.',
+                'created_by_id' => $user->id,
             ]
         );
-        
+
         $this->command->info('✅ История трудоустройства создана');
     }
 }

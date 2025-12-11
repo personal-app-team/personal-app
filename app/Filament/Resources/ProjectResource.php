@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ProjectResource\Pages;
+use App\Filament\Resources\ProjectResource\RelationManagers;
 use App\Models\Project;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -153,8 +154,8 @@ class ProjectResource extends Resource
     public static function getRelations(): array
     {
         return [
-            \App\Filament\Resources\RelationManagers\AddressesRelationManager::class,
-            \App\Filament\Resources\RelationManagers\PurposesRelationManager::class,
+            RelationManagers\AddressesRelationManager::class,
+            RelationManagers\PurposesRelationManager::class,
         ];
     }
 
@@ -165,28 +166,6 @@ class ProjectResource extends Resource
             'create' => Pages\CreateProject::route('/create'),
             'edit' => Pages\EditProject::route('/{record}/edit'),
         ];
-    }
-
-    // Добавить в класс ProjectResource
-    public static function canAccess(): bool
-    {
-        return auth()->user()->hasPermissionTo('edit_database') || 
-            auth()->user()->hasPermissionTo('view_projects');
-    }
-
-    public static function canCreate(): bool
-    {
-        return auth()->user()->hasPermissionTo('edit_database');
-    }
-
-    public static function canEdit($record): bool
-    {
-        return auth()->user()->hasPermissionTo('edit_database');
-    }
-
-    public static function canDelete($record): bool
-    {
-        return auth()->user()->hasPermissionTo('edit_database');
     }
 
     // ДОБАВЬ ЭТОТ МЕТОД ДЛЯ РУССКИХ НАЗВАНИЙ ДЕЙСТВИЙ

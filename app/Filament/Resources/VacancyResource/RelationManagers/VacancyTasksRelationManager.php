@@ -14,6 +14,10 @@ class VacancyTasksRelationManager extends RelationManager
 {
     protected static string $relationship = 'vacancyTasks';
 
+    protected static ?string $title = 'Задачи вакансии';
+    protected static ?string $label = 'задача вакансии';
+    protected static ?string $pluralLabel = 'Задачи вакансии';
+
     public function form(Form $form): Form
     {
         return $form

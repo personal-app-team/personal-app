@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\PurposeResource\Pages;
+use App\Filament\Resources\PurposeResource\RelationManagers;
 use App\Models\Purpose;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -209,8 +210,8 @@ class PurposeResource extends Resource
     public static function getRelations(): array
     {
         return [
-            \App\Filament\Resources\RelationManagers\PurposePayerCompaniesRelationManager::class,
-            \App\Filament\Resources\RelationManagers\PurposeAddressRulesRelationManager::class,
+            RelationManagers\PurposePayerCompaniesRelationManager::class,
+            RelationManagers\PurposeAddressRulesRelationManager::class,
         ];
     }
 
@@ -221,26 +222,5 @@ class PurposeResource extends Resource
             'create' => Pages\CreatePurpose::route('/create'),
             'edit' => Pages\EditPurpose::route('/{record}/edit'),
         ];
-    }
-
-    public static function canAccess(): bool
-    {
-        return auth()->user()->hasPermissionTo('edit_database') || 
-            auth()->user()->hasPermissionTo('view_purposes');
-    }
-
-    public static function canCreate(): bool
-    {
-        return auth()->user()->hasPermissionTo('edit_database');
-    }
-
-    public static function canEdit($record): bool
-    {
-        return auth()->user()->hasPermissionTo('edit_database');
-    }
-
-    public static function canDelete($record): bool
-    {
-        return auth()->user()->hasPermissionTo('edit_database');
     }
 }

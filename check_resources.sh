@@ -1,41 +1,38 @@
 #!/bin/bash
 
-echo "🔍 Анализ соответствия моделей и Filament Resources..."
-echo ""
+echo "🔍 Проверка проблемных ресурсов..."
 
-# Список моделей
-MODELS_PATH="app/Models"
-RESOURCES_PATH="app/Filament/Resources"
+resources=(
+  "AssignmentResource"
+  "ContractorWorkerResource" 
+  "ExpenseResource"
+  "MassPersonnelReportResource"
+  "PhotoResource"
+  "TraineeRequestResource"
+  "UserResource"
+  "WorkRequestStatusResource"
+)
 
-echo "📊 Моделей в системе:"
-ls -1 $MODELS_PATH/*.php | wc -l
-
-echo ""
-echo "📊 Filament Resources:"
-ls -1 $RESOURCES_PATH/*Resource.php | wc -l
-
-echo ""
-echo "📋 Соответствие моделей и ресурсов:"
-
-# Идем по всем моделям
-for model_file in $MODELS_PATH/*.php; do
-    model_name=$(basename $model_file .php)
-    resource_file="$RESOURCES_PATH/${model_name}Resource.php"
+for resource in "${resources[@]}"; do
+  echo -e "\n=== $resource ==="
+  
+  # Проверяем наличие файла
+  if [ -f "app/Filament/Resources/$resource/$resource.php" ]; then
+    echo "✅ Файл существует"
     
-    if [[ -f "$resource_file" ]]; then
-        echo "✅ $model_name -> ${model_name}Resource"
-    else
-        echo "❌ $model_name -> НЕТ РЕСУРСА"
-    fi
-done
-
-echo ""
-echo "📋 Ресурсы без моделей:"
-for resource_file in $RESOURCES_PATH/*Resource.php; do
-    resource_name=$(basename $resource_file Resource.php)
-    model_file="$MODELS_PATH/${resource_name}.php"
+    # Проверяем навигационные свойства
+    echo "📋 Навигационные свойства:"
+    grep -E "navigationIcon|navigationGroup|navigationLabel|navigationSort" "app/Filament/Resources/$resource/$resource.php" | head -5
     
-    if [[ ! -f "$model_file" ]]; then
-        echo "⚠️  $resource_file -> НЕТ МОДЕЛИ"
-    fi
+    # Проверяем canAccess
+    echo "🔐 Метод canAccess:"
+    grep -A10 "canAccess" "app/Filament/Resources/$resource/$resource.php" | head -15
+    
+    # Проверяем shouldRegisterNavigation
+    echo "📍 Метод shouldRegisterNavigation:"
+    grep -A5 "shouldRegisterNavigation" "app/Filament/Resources/$resource/$resource.php"
+    
+  else
+    echo "❌ Файл не найден!"
+  fi
 done

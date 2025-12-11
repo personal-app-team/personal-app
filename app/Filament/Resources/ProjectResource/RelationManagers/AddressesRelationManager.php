@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\RelationManagers;
+namespace App\Filament\Resources\ProjectResource\RelationManagers;
 
 use App\Models\Address;
 use Filament\Forms;

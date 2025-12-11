@@ -14,6 +14,10 @@ class VacancyRequirementsRelationManager extends RelationManager
 {
     protected static string $relationship = 'vacancyRequirements';
 
+    protected static ?string $title = 'Требования вакансии';
+    protected static ?string $label = 'требование вакансии';
+    protected static ?string $pluralLabel = 'Требования вакансии';
+
     public function form(Form $form): Form
     {
         return $form

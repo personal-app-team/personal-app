@@ -4,14 +4,17 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Models\Activity;
 
 class Contractor extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'name',
-        'contractor_code', // ← ДОБАВЛЕНО
+        'contractor_code',
         'contact_person',
         'contact_person_phone',
         'contact_person_email',
@@ -32,6 +35,53 @@ class Contractor extends Model
         'specializations' => 'array',
         'is_active' => 'boolean',
     ];
+
+    // === МЕТОД ДЛЯ ACTIVITYLOG ===
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'name',
+                'contractor_code',
+                'contact_person',
+                'contact_person_phone',
+                'contact_person_email',
+                'phone',
+                'email',
+                'user_id',
+                'contract_type_id',
+                'tax_status_id',
+                'address',
+                'inn',
+                'bank_details',
+                'specializations',
+                'notes',
+                'is_active',
+            ])
+            ->logOnlyDirty()                   // Только измененные поля
+            ->dontSubmitEmptyLogs()           // Не сохранять пустые логи
+            ->setDescriptionForEvent(fn(string $eventName) => match($eventName) {
+                'created' => '🏢 Подрядчик создан',
+                'updated' => '✏️ Подрядчик обновлен',
+                'deleted' => '🗑️ Подрядчик удален',
+                'restored' => '♻️ Подрядчик восстановлен',
+                default => "🏢 Подрядчик был {$eventName}",
+            })
+            ->useLogName('contractors')       // Категория лога
+            ->submitEmptyLogs(false);         // Явно указываем не сохранять пустые логи
+    }
+
+    // === ОПЦИОНАЛЬНО: ДОБАВЛЕНИЕ ДОПОЛНИТЕЛЬНЫХ ДАННЫХ В ЛОГ ===
+    public function tapActivity(Activity $activity, string $eventName)
+    {
+        $activity->properties = $activity->properties->merge([
+            'executors_count' => $this->executors()->count(),
+            'has_active_rates' => $this->contractorRates()->where('is_active', true)->exists(),
+            'contract_type' => $this->contractType?->name ?? 'Не указан',
+            'tax_status' => $this->taxStatus?->name ?? 'Не указан',
+            'is_active_display' => $this->is_active ? 'Активен' : 'Неактивен',
+        ]);
+    }
 
     // === АВТОМАТИЧЕСКАЯ ГЕНЕРАЦИЯ КОДА ===
     protected static function boot()

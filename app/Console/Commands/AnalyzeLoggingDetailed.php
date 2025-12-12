@@ -17,6 +17,7 @@ class AnalyzeLoggingDetailed extends Command
         $this->info('🔍 ДЕТАЛЬНЫЙ АНАЛИЗ ЛОГИРОВАНИЯ ACTIVITYLOG');
         $this->line('============================================');
         
+        // Все 41 модели из системы с приоритетами
         $models = [
             // Финансовые операции (ВЫСОКИЙ приоритет)
             'Contractor' => ['финансы', 'высокий'],
@@ -54,8 +55,14 @@ class AnalyzeLoggingDetailed extends Command
             // Проекты и геолокации (СРЕДНИЙ приоритет)
             'Project' => ['проекты', 'средний'],
             'Address' => ['проекты', 'средний'],
+            'AddressProject' => ['проекты', 'средний'],
+            'AddressTemplate' => ['проекты', 'средний'],
             'VisitedLocation' => ['проекты', 'средний'],
             'Photo' => ['проекты', 'средний'],
+            'Purpose' => ['проекты', 'средний'],
+            'PurposeTemplate' => ['проекты', 'средний'],
+            'PurposeAddressRule' => ['проекты', 'средний'],
+            'PurposePayerCompany' => ['проекты', 'средний'],
             
             // Справочники (НИЗКИЙ приоритет)
             'Category' => ['справочники', 'низкий'],
@@ -63,8 +70,6 @@ class AnalyzeLoggingDetailed extends Command
             'WorkType' => ['справочники', 'низкий'],
             'ContractType' => ['справочники', 'низкий'],
             'TaxStatus' => ['справочники', 'низкий'],
-            'AddressTemplate' => ['справочники', 'низкий'],
-            'PurposeTemplate' => ['справочники', 'низкий'],
             'InitiatorGrant' => ['справочники', 'низкий'],
         ];
         
@@ -152,9 +157,28 @@ class AnalyzeLoggingDetailed extends Command
         $this->line("С логированием: {$withLogging} (" . round($withLogging * 100 / $total) . "%)");
         $this->line("Без логирования: {$withoutLogging} (" . round($withoutLogging * 100 / $total) . "%)");
         
-        // Рекомендации
+        // Детальная проверка для моделей без логирования
         $this->newLine();
-        $this->info('🎯 РЕКОМЕНДАЦИИ ПО ПРИОРИТЕТАМ:');
+        $this->info('🔧 ДЕТАЛЬНЫЙ АНАЛИЗ МОДЕЛЕЙ БЕЗ ЛОГИРОВАНИЯ:');
+        
+        foreach ($results as $model => $data) {
+            if ($data['status'] === '❌') {
+                $this->line("• {$model} ({$data['category']}, {$data['priority']} приоритет):");
+                if ($data['log'] === '❌') {
+                    $this->line("  - Не использует трейт LogsActivity");
+                }
+                if ($data['options'] === '❌') {
+                    $this->line("  - Не имеет метода getActivitylogOptions");
+                }
+                if ($data['use_type'] === 'нет') {
+                    $this->line("  - Нет use-директивы для LogsActivity");
+                }
+            }
+        }
+        
+        // Рекомендации по исправлению
+        $this->newLine();
+        $this->info('🎯 РЕКОМЕНДАЦИИ ПО ДОБАВЛЕНИЮ ЛОГИРОВАНИЯ:');
         
         $priorities = ['высокий', 'средний', 'низкий'];
         
@@ -164,13 +188,73 @@ class AnalyzeLoggingDetailed extends Command
             );
             
             if (count($modelsWithout) > 0) {
-                $this->line("\n{$priority}:");
+                $this->line("\n{$priority} приоритет:");
                 foreach ($modelsWithout as $model => $data) {
                     $this->line("  • {$model} ({$data['category']})");
+                    
+                    // Генерируем пример кода для каждой модели
+                    if ($data['log'] === '❌' || $data['options'] === '❌') {
+                        $example = $this->generateLoggingExample($model);
+                        $this->line("    Пример кода для добавления:");
+                        $this->line($example);
+                    }
                 }
             }
         }
         
+        // Инструкция по внедрению
+        $this->newLine();
+        $this->info('📝 ИНСТРУКЦИЯ ПО ВНЕДРЕНИЮ ЛОГИРОВАНИЯ:');
+        $this->line("1. Для каждой модели из списка выше добавьте вверху файла:");
+        $this->line("   use Spatie\\Activitylog\\Traits\\LogsActivity;");
+        $this->line("");
+        $this->line("2. В теле класса добавьте:");
+        $this->line("   use LogsActivity;");
+        $this->line("");
+        $this->line("3. Добавьте метод:");
+        $this->line("   public function getActivitylogOptions(): LogOptions");
+        $this->line("   {");
+        $this->line("       return LogOptions::defaults()");
+        $this->line("           ->logOnly(['name', 'email', 'status']) // настройте поля");
+        $this->line("           ->logOnlyDirty()");
+        $this->line("           ->dontSubmitEmptyLogs();");
+        $this->line("   }");
+        
         return Command::SUCCESS;
+    }
+    
+    private function generateLoggingExample(string $model): string
+    {
+        $commonFields = [
+            'User' => ['name', 'email', 'phone', 'status'],
+            'Candidate' => ['full_name', 'email', 'phone', 'status', 'position'],
+            'Vacancy' => ['title', 'description', 'status', 'salary_from', 'salary_to'],
+            'WorkRequest' => ['title', 'description', 'status', 'work_date'],
+            'Shift' => ['start_time', 'end_time', 'status', 'total_amount'],
+            'Expense' => ['name', 'amount', 'category_id', 'status'],
+            'Project' => ['name', 'description', 'status'],
+            'Contractor' => ['name', 'contact_person', 'email', 'phone'],
+        ];
+        
+        $fields = $commonFields[$model] ?? ['name', 'status', 'description'];
+        
+        $fieldsString = implode("', '", $fields);
+        
+        return <<<EXAMPLE
+    // Вверху файла:
+    use Spatie\\Activitylog\\Traits\\LogsActivity;
+    
+    // В теле класса:
+    use LogsActivity;
+    
+    // Метод в классе:
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['{$fieldsString}'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
+EXAMPLE;
     }
 }

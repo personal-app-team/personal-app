@@ -8,13 +8,10 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use Carbon\Carbon;
-use Spatie\Activitylog\Traits\LogsActivity;
-use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Models\Activity;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles, LogsActivity;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
     protected $fillable = [
         'name',
@@ -503,46 +500,5 @@ class User extends Authenticatable
                 COALESCE(NULLIF(TRIM(patronymic), ''), '')
             )
         ");
-    }
-
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()
-            ->logOnly([
-                'name', 
-                'surname', 
-                'patronymic', 
-                'email', 
-                'phone', 
-                'telegram_id',
-                'contractor_id', 
-                'notes', 
-                'user_type',
-                'full_name'                    // Теперь есть в БД
-            ])
-            ->logOnlyDirty()                   // Только измененные поля
-            ->dontSubmitEmptyLogs()           // Не сохранять пустые логи
-            ->logExcept(['password', 'remember_token']) // Исключить чувствительные данные
-            ->setDescriptionForEvent(fn(string $eventName) => match($eventName) {
-                'created' => '👤 Пользователь создан',
-                'updated' => '✏️ Пользователь обновлен',
-                'deleted' => '🗑️ Пользователь удален',
-                'restored' => '♻️ Пользователь восстановлен',
-                default => "👤 Пользователь был {$eventName}",
-            })
-            ->useLogName('users')              // Категория лога
-            ->submitEmptyLogs(false);          // Явно указываем не сохранять пустые логи
-    }
-
-    public function tapActivity(Activity $activity, string $eventName)
-    {
-        $activity->properties = $activity->properties->merge([
-            'user_type_display' => $this->user_type_display,
-            'executor_type_info' => $this->getExecutorTypeInfo(),
-            'roles' => $this->roles->pluck('name')->toArray(),
-            'permissions' => $this->getAllPermissions()->pluck('name')->toArray(),
-            'has_contractor' => !is_null($this->contractor_id),
-            'is_active' => $this->hasRole('executor') || $this->hasRole('dispatcher') || $this->hasRole('initiator'),
-        ]);
     }
 }

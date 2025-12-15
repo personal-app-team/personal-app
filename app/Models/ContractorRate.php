@@ -11,25 +11,64 @@ class ContractorRate extends Model
 
     protected $fillable = [
         'contractor_id',
-        'specialty_id',
-        'hourly_rate', 
+        'category_id',
+        'specialty_name',
+        'hourly_rate',
+        'rate_type',
         'is_anonymous',
-        'is_active'
+        'is_active',
     ];
 
     protected $casts = [
         'hourly_rate' => 'decimal:2',
         'is_anonymous' => 'boolean',
-        'is_active' => 'boolean'
+        'is_active' => 'boolean',
     ];
 
+    // === СВЯЗИ ===
     public function contractor()
     {
         return $this->belongsTo(Contractor::class);
     }
 
-    public function specialty()
+    public function category()
     {
-        return $this->belongsTo(Specialty::class);
+        return $this->belongsTo(Category::class);
+    }
+
+    // === СКОПЫ ===
+    public function scopeForMass($query)
+    {
+        return $query->where('rate_type', 'mass');
+    }
+
+    public function scopeForPersonalized($query)
+    {
+        return $query->where('rate_type', 'personalized');
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    // === МЕТОДЫ ===
+    public function isMass()
+    {
+        return $this->rate_type === 'mass';
+    }
+
+    public function isPersonalized()
+    {
+        return $this->rate_type === 'personalized';
+    }
+
+    /**
+     * Полное название
+     */
+    public function getFullNameAttribute()
+    {
+        return $this->category?->name . ' - ' . $this->specialty_name . 
+               ' (' . ($this->isMass() ? 'Массовая' : 'Персонализированная') . ')';
     }
 }

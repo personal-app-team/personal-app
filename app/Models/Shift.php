@@ -166,6 +166,11 @@ class Shift extends Model
         return $this->belongsTo(ContractType::class);
     }
 
+    public function contractorRate()
+    {
+        return $this->belongsTo(ContractorRate::class);
+    }
+
     public function shiftExpenses()
     {
         return $this->hasMany(ShiftExpense::class);
@@ -258,24 +263,33 @@ class Shift extends Model
      */
     public function determineBaseRate()
     {
-        // 1. Если это наш исполнитель - берем ставку из user_specialties
-        if ($this->user_id && $this->specialty_id) {
+        // 1. Если это наш исполнитель (не подрядчик)
+        if ($this->user_id && $this->specialty_id && !$this->user->contractor_id) {
             $userSpecialty = $this->user->specialties()
                 ->where('specialty_id', $this->specialty_id)
                 ->first();
             
-            return $userSpecialty->pivot->base_hourly_rate ?? $userSpecialty->base_hourly_rate ?? 0;
+            return $userSpecialty->pivot->base_hourly_rate ?? $this->specialty->base_hourly_rate ?? 0;
         }
         
-        // 2. Если это персонализированный исполнитель подрядчика
+        // 2. Если это подрядчик (персонализированный или массовый)
+        if ($this->contractor_rate_id) {
+            return $this->contractorRate->hourly_rate ?? 0;
+        }
+        
+        // 3. Если это подрядчик без конкретной ставки (устаревшая логика)
         if ($this->user_id && $this->user->contractor_id && $this->specialty_id) {
-            $contractorRate = ContractorRate::where('contractor_id', $this->user->contractor_id)
-                ->where('specialty_id', $this->specialty_id)
-                ->where('is_anonymous', false)
-                ->where('is_active', true)
-                ->first();
-                
-            return $contractorRate?->hourly_rate ?? 0;
+            // Попробуем найти ставку по категории и названию специальности
+            $specialty = \App\Models\Specialty::find($this->specialty_id);
+            if ($specialty) {
+                $rate = \App\Models\ContractorRate::where('contractor_id', $this->user->contractor_id)
+                    ->where('category_id', $specialty->category_id)
+                    ->where('specialty_name', $specialty->name)
+                    ->active()
+                    ->first();
+                    
+                return $rate?->hourly_rate ?? 0;
+            }
         }
         
         return 0;

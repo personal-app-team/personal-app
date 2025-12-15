@@ -10,6 +10,8 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Tabs;
 
 class ContractorResource extends Resource
 {
@@ -27,181 +29,150 @@ class ContractorResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Основная информация')
-                    ->schema([
-                        Forms\Components\TextInput::make('name')
-                            ->label('Название компании')
-                            ->required()
-                            ->maxLength(255)
-                            ->placeholder('ООО "Стройка"')
-                            ->validationMessages([
-                                'required' => 'Название компании обязательно для заполнения',
-                                'max' => 'Название не должно превышать 255 символов',
-                            ]),
-                            
-                        Forms\Components\Select::make('user_id')
-                            ->label('User-представитель')
-                            ->relationship('user', 'email')
-                            ->searchable()
-                            ->preload()
-                            ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->full_name} ({$record->email})")
-                            ->helperText('Пользователь с ролью contractor, который будет управлять компанией через портал')
-                            ->nullable()
-                            ->validationMessages([
-                                'exists' => 'Выбранный пользователь не существует',
-                            ]),
-                    ])->columns(2),
-                    
-                Forms\Components\Section::make('Контактная информация')
-                    ->schema([
-                        Forms\Components\TextInput::make('contact_person')
-                            ->label('Контактное лицо (ФИО)')
-                            ->required() // ✅ ОБЯЗАТЕЛЬНОЕ ПОЛЕ
-                            ->maxLength(255)
-                            ->placeholder('Иванов Иван Иванович')
-                            ->validationMessages([
-                                'required' => 'Контактное лицо обязательно для заполнения',
-                                'max' => 'ФИО не должно превышать 255 символов',
-                            ]),
-                            
-                        Forms\Components\TextInput::make('contact_person_phone')
-                            ->label('Телефон контактного лица')
-                            ->tel()
-                            ->maxLength(20)
-                            ->nullable()
-                            ->placeholder('+7 (999) 123-45-67')
-                            ->validationMessages([
-                                'max' => 'Телефон не должен превышать 20 символов',
-                            ]),
-                            
-                        Forms\Components\TextInput::make('contact_person_email')
-                            ->label('Email контактного лица')
-                            ->email()
-                            ->maxLength(255)
-                            ->nullable()
-                            ->placeholder('ivanov@example.com')
-                            ->validationMessages([
-                                'email' => 'Введите корректный email адрес',
-                                'max' => 'Email не должен превышать 255 символов',
-                            ]),
-                            
-                        Forms\Components\TextInput::make('phone')
-                            ->label('Основной телефон компании')
-                            ->required() // ✅ ОБЯЗАТЕЛЬНОЕ ПОЛЕ
-                            ->tel()
-                            ->maxLength(255)
-                            ->placeholder('+7 (495) 123-45-67')
-                            ->validationMessages([
-                                'required' => 'Основной телефон компании обязателен для заполнения',
-                                'max' => 'Телефон не должен превышать 255 символов',
-                            ]),
-                            
-                        Forms\Components\TextInput::make('email')
-                            ->label('Основной email компании')
-                            ->required() // ✅ ОБЯЗАТЕЛЬНОЕ ПОЛЕ
-                            ->email()
-                            ->maxLength(255)
-                            ->placeholder('info@company.ru')
-                            ->validationMessages([
-                                'required' => 'Email компании обязателен для заполнения',
-                                'email' => 'Введите корректный email адрес',
-                                'max' => 'Email не должен превышать 255 символов',
-                            ]),
-                    ])->columns(2),
-                    
-                Forms\Components\Section::make('Реквизиты')
-                    ->schema([
-                        Forms\Components\Textarea::make('address')
-                            ->label('Юридический адрес')
-                            ->rows(2)
-                            ->maxLength(65535)
-                            ->nullable()
-                            ->placeholder('г. Москва, ул. Примерная, д. 1')
-                            ->validationMessages([
-                                'max' => 'Адрес не должен превышать 65535 символов',
-                            ]),
-                            
-                        Forms\Components\TextInput::make('inn')
-                            ->label('ИНН')
-                            ->maxLength(12)
-                            ->nullable()
-                            ->placeholder('1234567890')
-                            ->validationMessages([
-                                'max' => 'ИНН не должен превышать 12 символов',
-                            ]),
-                            
-                        Forms\Components\Textarea::make('bank_details')
-                            ->label('Банковские реквизиты')
-                            ->rows(3)
-                            ->maxLength(65535)
-                            ->nullable()
-                            ->placeholder('Банк: ПАО "Сбербанк"\nРасчетный счет: 40702810123456789012\nКорр. счет: 30101234567890123456\nБИК: 044525225')
-                            ->validationMessages([
-                                'max' => 'Реквизиты не должны превышать 65535 символов',
-                            ]),
-                    ])->columns(1),
+                Tabs::make('Подрядчик')
+                    ->tabs([
+                        Tabs\Tab::make('Основная информация')
+                            ->icon('heroicon-o-information-circle')
+                            ->schema([
+                                Section::make('Реквизиты компании')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('name')
+                                            ->label('Название компании')
+                                            ->required()
+                                            ->maxLength(255)
+                                            ->placeholder('ООО "Стройка"'),
+                                            
+                                        Forms\Components\TextInput::make('contractor_code')
+                                            ->label('Код подрядчика')
+                                            ->maxLength(10)
+                                            ->disabled()
+                                            ->helperText('Генерируется автоматически'),
+                                    ])->columns(2),
 
-                // НОВАЯ СЕКЦИЯ ДЛЯ НАЛОГОВОЙ СИСТЕМЫ
-                Forms\Components\Section::make('Налоговая информация')
-                    ->schema([
-                        Forms\Components\Select::make('contract_type_id')
-                            ->label('Тип договора компании')
-                            ->relationship('contractType', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->live()
-                            ->nullable()
-                            ->afterStateUpdated(function ($set, $state) {
-                                // Сбрасываем налоговый статус при смене типа договора
-                                $set('tax_status_id', null);
-                            })
-                            ->helperText('Организационно-правовая форма компании')
-                            ->validationMessages([
-                                'exists' => 'Выбранный тип договора не существует',
+                                Section::make('Контактная информация')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('contact_person')
+                                            ->label('Контактное лицо (ФИО)')
+                                            ->required()
+                                            ->maxLength(255),
+                                            
+                                        Forms\Components\TextInput::make('contact_person_phone')
+                                            ->label('Телефон контактного лица')
+                                            ->tel()
+                                            ->maxLength(20)
+                                            ->nullable(),
+                                            
+                                        Forms\Components\TextInput::make('contact_person_email')
+                                            ->label('Email контактного лица')
+                                            ->email()
+                                            ->maxLength(255)
+                                            ->nullable(),
+                                            
+                                        Forms\Components\TextInput::make('phone')
+                                            ->label('Основной телефон компании')
+                                            ->required()
+                                            ->tel()
+                                            ->maxLength(255),
+                                            
+                                        Forms\Components\TextInput::make('email')
+                                            ->label('Основной email компании')
+                                            ->required()
+                                            ->email()
+                                            ->maxLength(255),
+                                    ])->columns(2),
                             ]),
 
-                        Forms\Components\Select::make('tax_status_id')
-                            ->label('Налоговый статус компании')
-                            ->relationship(
-                                name: 'taxStatus',
-                                titleAttribute: 'name',
-                                modifyQueryUsing: fn ($query, callable $get) => 
-                                    $query->where('contract_type_id', $get('contract_type_id'))
-                                        ->where('is_active', true)
-                            )
-                            ->searchable()
-                            ->preload()
-                            ->nullable()
-                            ->helperText('Основной налоговый режим компании')
-                            ->visible(fn (callable $get): bool => (bool) $get('contract_type_id'))
-                            ->validationMessages([
-                                'exists' => 'Выбранный налоговый статус не существует',
+                        Tabs\Tab::make('Налоговая информация')
+                            ->icon('heroicon-o-banknotes')
+                            ->schema([
+                                Section::make('Договор и налоги')
+                                    ->schema([
+                                        Forms\Components\Select::make('contract_type_id')
+                                            ->label('Тип договора')
+                                            ->relationship('contractType', 'name')
+                                            ->searchable()
+                                            ->preload()
+                                            ->live()
+                                            ->nullable()
+                                            ->afterStateUpdated(function ($set, $state) {
+                                                $set('tax_status_id', null);
+                                            }),
+                                            
+                                        Forms\Components\Select::make('tax_status_id')
+                                            ->label('Налоговый статус')
+                                            ->relationship(
+                                                name: 'taxStatus',
+                                                titleAttribute: 'name',
+                                                modifyQueryUsing: fn ($query, callable $get) => 
+                                                    $query->where('contract_type_id', $get('contract_type_id'))
+                                                        ->where('is_active', true)
+                                            )
+                                            ->searchable()
+                                            ->preload()
+                                            ->nullable()
+                                            ->visible(fn (callable $get): bool => (bool) $get('contract_type_id')),
+                                    ])->columns(2),
                             ]),
-                    ])->columns(2),  
-                    
-                Forms\Components\Section::make('Специализации и настройки')
-                    ->schema([
-                        Forms\Components\TagsInput::make('specializations')
-                            ->label('Специализации компании')
-                            ->placeholder('Введите специализацию и нажмите Enter')
-                            ->helperText('Специальности, по которым подрядчик предоставляет персонал')
-                            ->nullable(),
-                            
-                        Forms\Components\Textarea::make('notes')
-                            ->label('Заметки')
-                            ->rows(2)
-                            ->maxLength(65535)
-                            ->nullable()
-                            ->placeholder('Дополнительная информация о подрядчике...')
-                            ->validationMessages([
-                                'max' => 'Заметки не должны превышать 65535 символов',
+
+                        Tabs\Tab::make('Дополнительная информация')
+                            ->icon('heroicon-o-document-text')
+                            ->schema([
+                                Section::make('Реквизиты')
+                                    ->schema([
+                                        Forms\Components\Textarea::make('address')
+                                            ->label('Юридический адрес')
+                                            ->rows(2)
+                                            ->maxLength(65535)
+                                            ->nullable(),
+                                            
+                                        Forms\Components\TextInput::make('inn')
+                                            ->label('ИНН')
+                                            ->maxLength(12)
+                                            ->nullable(),
+                                            
+                                        Forms\Components\Textarea::make('bank_details')
+                                            ->label('Банковские реквизиты')
+                                            ->rows(3)
+                                            ->maxLength(65535)
+                                            ->nullable(),
+                                    ]),
+
+                                Section::make('Настройки')
+                                    ->schema([
+                                        Forms\Components\TagsInput::make('specializations')
+                                            ->label('Специализации компании')
+                                            ->placeholder('Введите специализацию')
+                                            ->nullable()
+                                            ->helperText('Общие специализации для быстрого поиска'),
+                                            
+                                        Forms\Components\Textarea::make('notes')
+                                            ->label('Заметки')
+                                            ->rows(2)
+                                            ->maxLength(65535)
+                                            ->nullable(),
+                                            
+                                        Forms\Components\Toggle::make('is_active')
+                                            ->label('Активный подрядчик')
+                                            ->default(true),
+                                    ]),
                             ]),
-                            
-                        Forms\Components\Toggle::make('is_active')
-                            ->label('Активный подрядчик')
-                            ->default(true)
-                            ->helperText('Неактивные подрядчики не будут показываться при выборе'),
-                    ])->columns(1),
+
+                        Tabs\Tab::make('Управление')
+                            ->icon('heroicon-o-cog-6-tooth')
+                            ->schema([
+                                Section::make('Доступ к системе')
+                                    ->schema([
+                                        Forms\Components\Select::make('user_id')
+                                            ->label('User-представитель')
+                                            ->relationship('user', 'email')
+                                            ->searchable()
+                                            ->preload()
+                                            ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->full_name} ({$record->email})")
+                                            ->helperText('Пользователь с ролью contractor_admin')
+                                            ->nullable(),
+                                    ]),
+                            ]),
+                    ])->columnSpanFull(),
             ]);
     }
 
@@ -214,13 +185,12 @@ class ContractorResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->weight('medium')
-                    ->description(fn ($record) => $record->contact_person),
+                    ->description(fn ($record) => $record->contractor_code ? "Код: {$record->contractor_code}" : null),
                     
-                Tables\Columns\TextColumn::make('user.full_name')
-                    ->label('Представитель')
+                Tables\Columns\TextColumn::make('contact_person')
+                    ->label('Контактное лицо')
                     ->searchable()
-                    ->sortable()
-                    ->placeholder('Не назначен'),
+                    ->toggleable(),
                     
                 Tables\Columns\TextColumn::make('phone')
                     ->label('Телефон')
@@ -234,8 +204,6 @@ class ContractorResource extends Resource
 
                 Tables\Columns\TextColumn::make('contractType.name')
                     ->label('Тип договора')
-                    ->searchable()
-                    ->sortable()
                     ->badge()
                     ->color('primary')
                     ->toggleable()
@@ -243,28 +211,11 @@ class ContractorResource extends Resource
 
                 Tables\Columns\TextColumn::make('taxStatus.name')
                     ->label('Налоговый статус')
-                    ->searchable()
-                    ->sortable()
                     ->badge()
                     ->formatStateUsing(fn ($state, $record) => $state ? "{$state} (" . ($record->taxStatus?->tax_rate * 100) . "%)" : '—')
-                    ->color(fn ($state) => $state ? 'success' : 'gray')
+                    ->color('success')
                     ->toggleable()
-                    ->placeholder('—'),    
-                    
-                Tables\Columns\TextColumn::make('executors_count')
-                    ->label('Исполнителей')
-                    ->counts('executors')
-                    ->sortable()
-                    ->badge()
-                    ->color(fn ($state) => $state > 0 ? 'success' : 'gray')
-                    ->formatStateUsing(fn ($state) => $state > 0 ? $state : 'нет'),
-                    
-                Tables\Columns\TextColumn::make('specializations')
-                    ->label('Специализации')
-                    ->badge()
-                    ->separator(',')
-                    ->limitList(2)
-                    ->toggleable(),
+                    ->placeholder('—'),
                     
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Активен')
@@ -286,39 +237,43 @@ class ContractorResource extends Resource
                     ->trueLabel('Только активные')
                     ->falseLabel('Только неактивные'),
                     
-                Tables\Filters\Filter::make('has_executors')
-                    ->label('С исполнителями')
-                    ->query(fn ($query) => $query->has('executors')),
+                Tables\Filters\SelectFilter::make('contract_type_id')
+                    ->label('Тип договора')
+                    ->relationship('contractType', 'name')
+                    ->searchable()
+                    ->preload(),
                     
                 Tables\Filters\Filter::make('has_user')
                     ->label('С представителем')
                     ->query(fn ($query) => $query->whereNotNull('user_id')),
                     
-                Tables\Filters\Filter::make('no_user')
-                    ->label('Без представителя')
-                    ->query(fn ($query) => $query->whereNull('user_id')),
+                Tables\Filters\Filter::make('has_rates')
+                    ->label('Со ставками')
+                    ->query(fn ($query) => $query->whereHas('contractorRates')),
             ])
             ->actions([
-                Tables\Actions\EditAction::make()
-                    ->label('Редактировать'),
+                Tables\Actions\Action::make('rates')
+                    ->label('Ставки')
+                    ->icon('heroicon-o-currency-dollar')
+                    ->url(fn (Contractor $record) => ContractorRateResource::getUrl('index', [
+                        'tableFilters[contractor][values]' => [$record->id]
+                    ]))
+                    ->color('success')
+                    ->badge(fn ($record) => $record->contractorRates()->count())
+                    ->badgeColor('success'),
                     
-                Tables\Actions\Action::make('view_executors')
+                Tables\Actions\Action::make('executors')
                     ->label('Исполнители')
                     ->icon('heroicon-o-users')
                     ->url(fn (Contractor $record) => UserResource::getUrl('index', [
                         'tableFilters[contractor][values]' => [$record->id]
                     ]))
                     ->color('gray')
-                    ->hidden(fn ($record) => $record->executors()->count() === 0),
+                    ->badge(fn ($record) => $record->executors()->count())
+                    ->badgeColor('gray'),
                     
-                Tables\Actions\Action::make('statistics')
-                    ->label('Статистика')
-                    ->icon('heroicon-o-chart-bar')
-                    ->modalHeading(fn ($record) => "Статистика: {$record->name}")
-                    ->modalContent(fn ($record) => view('filament.resources.contractor-resource.statistics', [
-                        'contractor' => $record
-                    ]))
-                    ->modalCancelActionLabel('Закрыть'),
+                Tables\Actions\EditAction::make()
+                    ->label('Редактировать'),
                     
                 Tables\Actions\DeleteAction::make()
                     ->label('Удалить'),
@@ -341,7 +296,7 @@ class ContractorResource extends Resource
     public static function getRelations(): array
     {
         return [
-            // Можно добавить RelationManager для исполнителей
+            // Можно добавить RelationManager для ставок, но пока используем действие "Ставки"
         ];
     }
 

@@ -4,133 +4,104 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\PermissionRegistrar;
+use Illuminate\Support\Facades\DB;
 
 class FixAllPermissionsSeeder extends Seeder
 {
     public function run(): void
     {
-        // Очистить кэш разрешений
-        app()[PermissionRegistrar::class]->forgetCachedPermissions();
-        
         $this->command->info('🧹 Очистка кэша разрешений...');
-        
-        // НЕ УДАЛЯЕМ существующие разрешения и роли!
-        // Вместо этого используем firstOrCreate для всех
-        
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
         $this->command->info('🔄 Создание отсутствующих разрешений для Filament...');
         
-        // 1. Базовые разрешения для всех ресурсов
+        // Список всех ресурсов Filament
         $resources = [
-            'activity_log', 'address', 'address_template', 'assignment', 'candidate',
-            'candidate_decision', 'candidate_status_history', 'category', 'compensation', 
-            'contract_type', 'contractor', 'contractor_rate', 'contractor_worker', 'department', 
-            'employment_history', 'expense', 'hiring_decision', 'initiator_grant', 'interview', 
-            'mass_personnel_report', 'photo', 'position_change_request', 'project', 'purpose', 
-            'purpose_address_rule', 'purpose_payer_company', 'purpose_template', 'recruitment_request', 
-            'role', 'shift', 'specialty', 'tax_status', 'trainee_request', 'user', 'vacancy',
-            'vacancy_condition', 'vacancy_requirement', 'vacancy_task', 'visited_location',
-            'work_request', 'work_request_status', 'work_type'
+            'User', 'Role', 'Contractor', 'WorkRequest', 'Assignment', 'Shift',
+            'Category', 'Specialty', 'WorkType', 'ContractorRate', 'Expense',
+            'Compensation', 'MassPersonnelReport', 'TraineeRequest', 'Department',
+            'EmploymentHistory', 'Vacancy', 'VacancyTask', 'VacancyRequirement',
+            'VacancyCondition', 'RecruitmentRequest', 'Candidate', 'CandidateStatusHistory',
+            'CandidateDecision', 'Interview', 'HiringDecision', 'PositionChangeRequest',
+            'Project', 'Purpose', 'PurposeTemplate', 'Address', 'AddressTemplate',
+            'PurposePayerCompany', 'PurposeAddressRule', 'ContractType', 'TaxStatus',
+            'ActivityLog', 'Photo', 'VisitedLocation', 'WorkRequestStatus', 'InitiatorGrant',
+            'ContractorWorker'
         ];
-        
+
+        // Базовые действия для ресурсов
         $actions = ['view_any', 'view', 'create', 'update', 'delete', 'restore', 'force_delete'];
-        
+
+        $createdPermissions = [];
+
         foreach ($resources as $resource) {
             foreach ($actions as $action) {
-                Permission::firstOrCreate([
-                    'name' => $action . '_' . $resource,
-                    'guard_name' => 'web'
-                ]);
+                $permissionName = $action . '_' . strtolower($resource);
+                
+                if (!Permission::where('name', $permissionName)->exists()) {
+                    Permission::create(['name' => $permissionName, 'guard_name' => 'web']);
+                    $createdPermissions[] = $permissionName;
+                }
             }
         }
-        
-        $this->command->info('✅ Созданы разрешения для ресурсов');
-        
-        // 2. Специальные разрешения (создаем только если нет)
+
+        // Специальные разрешения (не ресурсы)
         $specialPermissions = [
-            // Системные
-            'access_filament',
-            'impersonate_users',
-            
-            // Workflow
-            'approve_assignments',
-            'reject_assignments',
-            'confirm_assignments',
-            'complete_assignments',
-            'start_shifts',
-            'end_shifts',
+            'access_panel',
+            'export_data',
+            'import_data',
+            'manage_settings',
+            'view_reports',
             'approve_shifts',
-            'reject_shifts',
-            'publish_work_requests',
-            
-            // Назначения и диспетчеризация
-            'create_brigadier_schedule',
-            'create_work_request_assignment',
-            'create_mass_personnel_assignment',
-            'edit_assignments',
-            'cancel_assignments',
-            'assign_executors',
-            
-            // Подбор персонала
-            'assign_hr_to_recruitment',
-            'make_candidate_decision',
-            'schedule_interview',
-            'make_hiring_decision',
-            'approve_position_change',
-            
-            // Стажеры
-            'approve_trainee_hr',
-            'approve_trainee_manager',
-            'activate_trainee',
-            'complete_trainee',
-            
-            // Массовый персонал
-            'generate_mass_report',
-            'approve_mass_report',
-            'pay_mass_report',
+            'approve_expenses',
+            'manage_payments',
+            'assign_roles',
+            'manage_permissions',
         ];
-        
+
         foreach ($specialPermissions as $permission) {
-            Permission::firstOrCreate([
-                'name' => $permission,
-                'guard_name' => 'web'
-            ]);
+            if (!Permission::where('name', $permission)->exists()) {
+                Permission::create(['name' => $permission, 'guard_name' => 'web']);
+                $createdPermissions[] = $permission;
+            }
         }
-        
-        $this->command->info('✅ Созданы специальные разрешения');
-        
-        // 3. Создаем только БАЗОВЫЕ роли (если их нет)
-        $basicRoles = [
-            'admin' => 'Администратор (полный доступ)',
-            'hr' => 'HR-специалист',
-            'manager' => 'Руководитель',
-            'dispatcher' => 'Диспетчер',
-            'initiator' => 'Инициатор',
-            'executor' => 'Исполнитель',
-            'trainee' => 'Стажер',
-            'viewer' => 'Наблюдатель',
-            // Роли подрядчиков создаются через миграцию, НЕ создаем здесь
-        ];
-        
-        foreach ($basicRoles as $name => $description) {
-            Role::firstOrCreate([
-                'name' => $name,
-                'guard_name' => 'web'
-            ]);
+
+        if (!empty($createdPermissions)) {
+            $this->command->info('✅ Созданы разрешения для ресурсов');
+            $this->command->info('📝 Создано разрешений: ' . count($createdPermissions));
+        } else {
+            $this->command->info('📝 Все разрешения уже существуют');
         }
+
+        // Создаем базовые роли если их нет
+        $roles = ['admin', 'initiator', 'dispatcher', 'executor', 'hr', 'manager', 'contractor_admin', 'contractor_dispatcher', 'contractor_executor', 'trainee', 'viewer'];
         
-        $this->command->info('✅ Базовые роли созданы');
-        
-        // 4. Админ получает ВСЕ разрешения
+        foreach ($roles as $roleName) {
+            if (!Role::where('name', $roleName)->exists()) {
+                Role::create(['name' => $roleName, 'guard_name' => 'web']);
+                $this->command->info("✅ Роль '{$roleName}' создана");
+            }
+        }
+
+        // Назначаем ВСЕ разрешения роли admin
         $adminRole = Role::where('name', 'admin')->first();
         if ($adminRole) {
-            $adminRole->syncPermissions(Permission::all());
-            $this->command->info('👑 Админу назначены все разрешения');
+            $allPermissions = Permission::all()->pluck('name')->toArray();
+            $adminRole->syncPermissions($allPermissions);
+            $this->command->info('👑 Админу назначены все разрешения (' . count($allPermissions) . ')');
         }
-        
+
+        // Назначаем роль admin пользователю admin@example.com
+        $adminUser = User::where('email', 'admin@example.com')->first();
+        if ($adminUser) {
+            $adminUser->assignRole('admin');
+            $this->command->info('👤 Пользователю admin@example.com назначена роль admin');
+        } else {
+            $this->command->warn('⚠️ Пользователь admin@example.com не найден, создайте его');
+        }
+
         $this->command->info('🎉 Разрешения и роли обновлены!');
     }
 }

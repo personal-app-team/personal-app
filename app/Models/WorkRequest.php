@@ -4,18 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
-use Spatie\Activitylog\Traits\CausesActivity;
+use Carbon\Carbon;
 
 class WorkRequest extends Model
 {
-    use HasFactory;
-    use LogsActivity, CausesActivity;
+    use HasFactory, LogsActivity, SoftDeletes;
 
-    // === СТАТУСЫ ЗАЯВКИ (ПОЛНЫЙ НАБОР) ===
-    const STATUS_DRAFT = 'draft';
-    const STATUS_PENDING_BRIGADIER_CONFIRMATION = 'pending_brigadier_confirmation';
+    // Статусы заявок
     const STATUS_PUBLISHED = 'published';
     const STATUS_IN_PROGRESS = 'in_progress';
     const STATUS_CLOSED = 'closed';
@@ -25,14 +23,16 @@ class WorkRequest extends Model
     const STATUS_COMPLETED = 'completed';
     const STATUS_CANCELLED = 'cancelled';
 
-    // ТИПЫ ПЕРСОНАЛА
-    const PERSONNEL_OUR = 'our';
+    // Типы персонала
+    const PERSONNEL_OUR_STAFF = 'our_staff';
     const PERSONNEL_CONTRACTOR = 'contractor';
 
     protected $fillable = [
         'request_number',
+        'external_number',
         'initiator_id',
         'brigadier_id',
+        'workers_count',
         'contact_person',
         'category_id',
         'work_type_id',
@@ -43,121 +43,157 @@ class WorkRequest extends Model
         'purpose_id',
         'personnel_type',
         'contractor_id',
-        'mass_personnel_names',
         'work_date',
         'start_time',
-        'workers_count',
-        'estimated_shift_duration',
+        'estimated_duration_minutes',
         'status',
         'dispatcher_id',
         'additional_info',
+        'desired_workers',
         'total_worked_hours',
+        'published_at',
+        'staffed_at',
+        'completed_at',
     ];
 
     protected $casts = [
-        'is_custom_address' => 'boolean',
-        'brigadier_manual' => 'boolean',
-        'personnel_type' => 'string',
+        'workers_count' => 'integer',
         'work_date' => 'date',
         'start_time' => 'datetime',
+        'estimated_duration_minutes' => 'integer',
+        'total_worked_hours' => 'decimal:2',
         'published_at' => 'datetime',
         'staffed_at' => 'datetime',
         'completed_at' => 'datetime',
-        'estimated_shift_duration' => 'decimal:2',
-        'total_worked_hours' => 'decimal:2',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        'is_custom_address' => 'boolean',
     ];
 
-    public function getActivitylogOptions(): LogOptions
+    protected static function boot()
     {
-        return LogOptions::defaults()
-            ->logOnly([
-                'request_number',
-                'initiator_id',
-                'brigadier_id',
-                'contact_person',
-                'category_id',
-                'work_type_id',
-                'address_id',
-                'is_custom_address',
-                'custom_address',
-                'project_id',
-                'purpose_id',
-                'personnel_type',
-                'contractor_id',
-                'mass_personnel_names',
-                'work_date',
-                'start_time',
-                'workers_count',
-                'estimated_shift_duration',
-                'status',
-                'dispatcher_id',
-                'additional_info',
-                'total_worked_hours',
-            ])
-            ->logOnlyDirty() // Только измененные поля
-            ->dontSubmitEmptyLogs()
-            ->dontLogIfAttributesChangedOnly(['updated_at'])
-            ->setDescriptionForEvent(function(string $eventName) {
-                return match($eventName) {
-                    'created' => 'Заявка создана',
-                    'updated' => 'Заявка изменена',
-                    'deleted' => 'Заявка удалена',
-                    'restored' => 'Заявка восстановлена',
-                    default => "Заявка {$eventName}",
-                };
-            })
-            ->useLogName('work_requests')
-            ->logFillable()
-            ->submitEmptyLogs(false);
+        parent::boot();
+
+        static::creating(function ($workRequest) {
+            // Генерация номера заявки
+            if (!$workRequest->request_number) {
+                $workRequest->request_number = $workRequest->generateRequestNumber();
+            }
+
+            // Статус по умолчанию
+            if (!$workRequest->status) {
+                $workRequest->status = self::STATUS_PUBLISHED;
+                $workRequest->published_at = now();
+            }
+        });
+
+        static::saving(function ($workRequest) {
+            // Валидация бизнес-правил
+            $workRequest->validateBusinessRules();
+        });
     }
-    
+
     /**
-     * Дополнительные настройки для лучшего отображения
+     * Генерация номера заявки
      */
-    public function tapActivity(\Spatie\Activitylog\Models\Activity $activity, string $eventName)
+    public function generateRequestNumber(): string
     {
-        $activity->properties = $activity->properties->merge([
-            'initiator_name' => $this->initiator?->full_name,
-            'brigadier_name' => $this->brigadier?->full_name,
-            'dispatcher_name' => $this->dispatcher?->full_name,
-            'category_name' => $this->category?->name,
-            'work_type_name' => $this->workType?->name,
-            'project_name' => $this->project?->name,
-            'purpose_name' => $this->purpose?->name,
-            'contractor_name' => $this->contractor?->name,
-            'final_address' => $this->final_address,
-            'personnel_type_display' => $this->personnel_type_display,
-            'status_display' => $this->status_display,
-            'workers_count' => $this->workers_count,
-            'estimated_hours' => $this->estimated_shift_duration,
-        ]);
+        $prefix = $this->getRequestNumberPrefix();
+        $year = now()->year;
+        
+        // Находим последний номер за год
+        $lastNumber = self::whereYear('created_at', $year)
+            ->where('request_number', 'LIKE', "WR-{$prefix}-{$year}-%")
+            ->orderBy('request_number', 'desc')
+            ->first();
+        
+        $sequence = 1;
+        if ($lastNumber) {
+            preg_match('/-(\d+)$/', $lastNumber->request_number, $matches);
+            $sequence = ($matches[1] ?? 0) + 1;
+        }
+        
+        return sprintf("WR-%s-%d-%04d", $prefix, $year, $sequence);
     }
 
-    // === МАССИВЫ ДЛЯ УДОБСТВА ===
-    public static function getStatuses()
+    /**
+     * Получить префикс для номера заявки
+     */
+    private function getRequestNumberPrefix(): string
     {
-        return [
-            self::STATUS_DRAFT => 'Черновик',
-            self::STATUS_PENDING_BRIGADIER_CONFIRMATION => 'Ожидает подтверждения бригадира',
-            self::STATUS_PUBLISHED => 'Опубликована',
-            self::STATUS_IN_PROGRESS => 'В работе',
-            self::STATUS_CLOSED => 'Закрыта',
-            self::STATUS_NO_SHIFTS => 'Нет смен',
-            self::STATUS_WORKING => 'Выполняется',
-            self::STATUS_UNCLOSED => 'Не закрыта',
-            self::STATUS_COMPLETED => 'Завершена',
-            self::STATUS_CANCELLED => 'Отменена',
-        ];
+        if ($this->personnel_type === self::PERSONNEL_CONTRACTOR && $this->contractor_id) {
+            // Для подрядчиков - contractor_code
+            $contractor = Contractor::find($this->contractor_id);
+            return $contractor->contractor_code ?? 'CNTR';
+        }
+        
+        // Для наших исполнителей - префикс категории
+        $category = Category::find($this->category_id);
+        return $category->prefix ?? 'GEN';
     }
 
-    public static function getPersonnelTypes()
+    /**
+     * Валидация бизнес-правил
+     */
+    public function validateBusinessRules(): void
     {
-        return [
-            self::PERSONNEL_OUR => 'Наш персонал',
-            self::PERSONNEL_CONTRACTOR => 'Персонал подрядчика',
-        ];
+        // Правило 1: Один тип персонала
+        if ($this->personnel_type === self::PERSONNEL_CONTRACTOR && !$this->contractor_id) {
+            throw new \Exception('Для заявок на подрядчика должен быть указан подрядчик');
+        }
+
+        if ($this->personnel_type === self::PERSONNEL_OUR_STAFF && $this->contractor_id) {
+            throw new \Exception('Для заявок на наших исполнителей не должен быть указан подрядчик');
+        }
+
+        // Правило 2: Категория обязательна
+        if (!$this->category_id) {
+            throw new \Exception('Категория персонала обязательна');
+        }
+
+        // Правило 3: Бригадир или контактное лицо
+        if (!$this->brigadier_id && !$this->contact_person) {
+            throw new \Exception('Должен быть указан либо бригадир, либо контактное лицо');
+        }
+
+        // Правило 4: Дата работ обязательна
+        if (!$this->work_date) {
+            throw new \Exception('Дата работ обязательна');
+        }
+
+        // Правило 5: Адрес (официальный или кастомный)
+        if (!$this->address_id && !$this->custom_address) {
+            throw new \Exception('Должен быть указан либо официальный адрес, либо кастомный адрес');
+        }
+
+        // Правило 6: Проверка бригадира (если указан)
+        if ($this->brigadier_id && $this->work_date) {
+            $this->validateBrigadier();
+        }
+
+        if ($this->workers_count !== null && $this->workers_count <= 0) {
+            throw new \Exception('Количество работников должно быть положительным числом');
+        }
+    }
+
+    /**
+     * Проверка, что пользователь назначен бригадиром на эту дату
+     */
+    public function validateBrigadier(): void
+    {
+        if (!$this->brigadier_id || !$this->work_date) {
+            return;
+        }
+
+        $isBrigadier = Assignment::where('user_id', $this->brigadier_id)
+            ->where('assignment_type', 'brigadier_schedule')
+            ->whereDate('planned_date', $this->work_date)
+            ->where('status', 'confirmed')
+            ->exists();
+
+        if (!$isBrigadier) {
+            throw new \Exception(
+                "Пользователь ID {$this->brigadier_id} не назначен бригадиром на {$this->work_date}"
+            );
+        }
     }
 
     // === СВЯЗИ ===
@@ -174,6 +210,11 @@ class WorkRequest extends Model
     public function dispatcher()
     {
         return $this->belongsTo(User::class, 'dispatcher_id');
+    }
+
+    public function contractor()
+    {
+        return $this->belongsTo(Contractor::class);
     }
 
     public function category()
@@ -201,11 +242,6 @@ class WorkRequest extends Model
         return $this->belongsTo(Address::class);
     }
 
-    public function contractor()
-    {
-        return $this->belongsTo(Contractor::class);
-    }
-
     public function shifts()
     {
         return $this->hasMany(Shift::class, 'request_id');
@@ -213,154 +249,168 @@ class WorkRequest extends Model
 
     public function assignments()
     {
-        return $this->hasMany(Assignment::class);
+        return $this->hasMany(Assignment::class, 'work_request_id');
     }
 
     public function massPersonnelReports()
     {
-        return $this->hasMany(MassPersonnelReport::class);
+        return $this->hasMany(MassPersonnelReport::class, 'request_id');
     }
 
-    // === НОВАЯ СВЯЗЬ: ИСТОРИЯ СТАТУСОВ ===
     public function statusHistory()
     {
-        return $this->hasMany(WorkRequestStatus::class)->orderBy('changed_at', 'desc');
+        return $this->hasMany(WorkRequestStatus::class);
     }
 
-    public function currentStatusRecord()
-    {
-        return $this->hasOne(WorkRequestStatus::class)->latestOfMany();
-    }
-
-    // === SCOPE ДЛЯ ФИЛЬТРАЦИИ ===
-    public function scopeDraft($query)
-    {
-        return $query->where('status', self::STATUS_DRAFT);
-    }
-
-    public function scopePendingBrigadier($query)
-    {
-        return $query->where('status', self::STATUS_PENDING_BRIGADIER_CONFIRMATION);
-    }
-
-    public function scopePublished($query)
-    {
-        return $query->where('status', self::STATUS_PUBLISHED);
-    }
-
-    public function scopeInProgress($query)
-    {
-        return $query->where('status', self::STATUS_IN_PROGRESS);
-    }
-
-    // === БИЗНЕС-МЕТОДЫ С ИСТОРИЕЙ ===
-
-    /**
-     * Безопасное изменение статуса с записью в историю
-     */
-    public function changeStatus($newStatus, $changedBy = null, $notes = null)
-    {
-        $oldStatus = $this->status;
-        
-        // Обновляем текущий статус
-        $this->update(['status' => $newStatus]);
-        
-        // Записываем в историю
-        WorkRequestStatus::create([
-            'work_request_id' => $this->id,
-            'status' => $newStatus,
-            'changed_by_id' => $changedBy ?? auth()->id(),
-            'changed_at' => now(),
-            'notes' => $notes ?? "Status changed from {$oldStatus} to {$newStatus}"
-        ]);
-
-        return $this;
-    }
-
-    /**
-     * Получить контактное лицо (бригадир или ручное)
-     */
-    public function getContactPersonAttribute()
-    {
-        return $this->brigadier_manual ?: $this->brigadier?->full_name;
-    }
-
-    /**
-     * Получить финальный адрес (официальный или кастомный)
-     */
+    // === ACCESSORS ===
     public function getFinalAddressAttribute()
     {
         if ($this->is_custom_address && $this->custom_address) {
             return $this->custom_address;
         }
+
         return $this->address?->full_address;
     }
 
-    /**
-     * Получить отображаемый тип персонала
-     */
     public function getPersonnelTypeDisplayAttribute()
     {
-        return self::getPersonnelTypes()[$this->personnel_type] ?? 'Не указан';
+        return match($this->personnel_type) {
+            self::PERSONNEL_OUR_STAFF => 'Наши исполнители',
+            self::PERSONNEL_CONTRACTOR => 'Подрядчик',
+            default => 'Не указано'
+        };
     }
 
-    /**
-     * Получить отображаемый статус
-     */
     public function getStatusDisplayAttribute()
     {
-        return self::getStatuses()[$this->status] ?? $this->status;
+        return match($this->status) {
+            self::STATUS_PUBLISHED => 'Опубликована',
+            self::STATUS_IN_PROGRESS => 'В работе у диспетчера',
+            self::STATUS_CLOSED => 'Укомплектована',
+            self::STATUS_NO_SHIFTS => 'Смены не созданы',
+            self::STATUS_WORKING => 'В работе (смены открыты)',
+            self::STATUS_UNCLOSED => 'Смены не закрыты вовремя',
+            self::STATUS_COMPLETED => 'Завершена',
+            self::STATUS_CANCELLED => 'Отменена',
+            default => $this->status
+        };
     }
 
-    /**
-     * Проверить можно ли генерировать номер заявки
-     */
-    public function canGenerateRequestNumber()
+    public function getPlannedEndTimeAttribute()
     {
-        return $this->status === self::STATUS_CLOSED && 
-               $this->personnel_type && 
-               $this->category_id;
-    }
-
-    /**
-     * Сгенерировать номер заявки по правилам
-     */
-    public function generateRequestNumber()
-    {
-        if (!$this->canGenerateRequestNumber()) {
+        if (!$this->start_time || !$this->estimated_duration_minutes) {
             return null;
         }
 
-        if ($this->personnel_type === self::PERSONNEL_OUR) {
-            return $this->category->prefix . '-' . $this->id . '/' . $this->work_date->year;
-        }
-
-        if ($this->personnel_type === self::PERSONNEL_CONTRACTOR && $this->contractor) {
-            return $this->contractor->contractor_code . '-' . $this->id . '/' . $this->work_date->year;
-        }
-
-        return null;
+        $start = Carbon::parse($this->start_time);
+        return $start->addMinutes($this->estimated_duration_minutes);
     }
 
-    /**
-     * Можно ли назначать бригадира для этой заявки
-     */
-    public function canAssignBrigadier()
+    public function getEstimatedHoursAttribute()
     {
-        return in_array($this->status, [
-            self::STATUS_DRAFT,
-            self::STATUS_PENDING_BRIGADIER_CONFIRMATION
+        if (!$this->estimated_duration_minutes) {
+            return 0;
+        }
+
+        return round($this->estimated_duration_minutes / 60, 2);
+    }
+
+    // === МЕТОДЫ ДЛЯ WORKFLOW ===
+    public function takeInProgress()
+    {
+        $this->update([
+            'status' => self::STATUS_IN_PROGRESS,
+            'dispatcher_id' => auth()->id()
         ]);
     }
 
-    /**
-     * Заявка находится на этапе планирования
-     */
-    public function isInPlanningStage()
+    public function markAsClosed()
     {
-        return in_array($this->status, [
-            self::STATUS_DRAFT,
-            self::STATUS_PENDING_BRIGADIER_CONFIRMATION
+        $this->update([
+            'status' => self::STATUS_CLOSED,
+            'staffed_at' => now()
         ]);
+    }
+
+    public function markAsWorking()
+    {
+        $this->update([
+            'status' => self::STATUS_WORKING
+        ]);
+    }
+
+    public function markAsCompleted()
+    {
+        $this->update([
+            'status' => self::STATUS_COMPLETED,
+            'completed_at' => now()
+        ]);
+    }
+
+    public function cancel()
+    {
+        $this->update([
+            'status' => self::STATUS_CANCELLED
+        ]);
+    }
+
+    // === РАСЧЕТНЫЕ МЕТОДЫ ===
+    public function calculateTotalHours()
+    {
+        $shiftHours = $this->shifts()->sum('worked_minutes') / 60;
+        $reportHours = $this->massPersonnelReports()->sum('total_hours');
+        
+        $this->total_worked_hours = $shiftHours + $reportHours;
+        $this->save();
+        
+        return $this->total_worked_hours;
+    }
+
+    public function getAssignedWorkersCount()
+    {
+        $shiftWorkers = $this->shifts()->count();
+        $reportWorkers = $this->massPersonnelReports()->sum('workers_count');
+        
+        return $shiftWorkers + $reportWorkers;
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'status', 
+                'initiator_id', 
+                'brigadier_id', 
+                'contact_person',  // ← УБЕДИТЕСЬ ЧТО ДОБАВИЛИ!
+                'dispatcher_id',
+                'contractor_id', 
+                'personnel_type', 
+                'category_id', 
+                'work_type_id',
+                'work_date', 
+                'start_time', 
+                'estimated_duration_minutes',
+                'workers_count',   // ← ДОБАВЛЯЕМ!
+                'request_number', 
+                'external_number',
+                'address_id',
+                'is_custom_address',
+                'custom_address',
+                'project_id',
+                'purpose_id',
+                'additional_info',
+                'desired_workers',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(function(string $eventName) {
+                return match($eventName) {
+                    'created' => 'Заявка на работы создана',
+                    'updated' => 'Заявка на работы изменена',
+                    'deleted' => 'Заявка на работы удалена',
+                    'restored' => 'Заявка на работы восстановлена',
+                    default => "Заявка {$eventName}",
+                };
+            });
     }
 }

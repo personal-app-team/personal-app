@@ -102,24 +102,47 @@ class Contractor extends Model
         });
     }
 
-    public static function generateContractorCode($name)
+    public static function generateContractorCode($name): string
     {
-        // Берем первые буквы каждого слова (игнорируем ООО, ИП и т.д.)
+        // Убираем ООО, ИП и т.д.
         $ignoreWords = ['ооо', 'ип', 'зао', 'оао', 'llc', 'inc', 'ltd'];
-        $words = array_filter(explode(' ', preg_replace('/[^a-zA-Zа-яА-Я0-9\s]/u', '', $name)));
+        
+        // Транслитерация кириллицы в латиницу
+        $transliterationMap = [
+            'а' => 'a', 'б' => 'b', 'в' => 'v', 'г' => 'g', 'д' => 'd',
+            'е' => 'e', 'ё' => 'e', 'ж' => 'zh', 'з' => 'z', 'и' => 'i',
+            'й' => 'y', 'к' => 'k', 'л' => 'l', 'м' => 'm', 'н' => 'n',
+            'о' => 'o', 'п' => 'p', 'р' => 'r', 'с' => 's', 'т' => 't',
+            'у' => 'u', 'ф' => 'f', 'х' => 'h', 'ц' => 'ts', 'ч' => 'ch',
+            'ш' => 'sh', 'щ' => 'sch', 'ъ' => '', 'ы' => 'y', 'ь' => '',
+            'э' => 'e', 'ю' => 'yu', 'я' => 'ya',
+            'А' => 'A', 'Б' => 'B', 'В' => 'V', 'Г' => 'G', 'Д' => 'D',
+            'Е' => 'E', 'Ё' => 'E', 'Ж' => 'ZH', 'З' => 'Z', 'И' => 'I',
+            'Й' => 'Y', 'К' => 'K', 'Л' => 'L', 'М' => 'M', 'Н' => 'N',
+            'О' => 'O', 'П' => 'P', 'Р' => 'R', 'С' => 'S', 'Т' => 'T',
+            'У' => 'U', 'Ф' => 'F', 'Х' => 'H', 'Ц' => 'TS', 'Ч' => 'CH',
+            'Ш' => 'SH', 'Щ' => 'SCH', 'Ъ' => '', 'Ы' => 'Y', 'Ь' => '',
+            'Э' => 'E', 'Ю' => 'YU', 'Я' => 'YA'
+        ];
+        
+        // Транслитерируем название
+        $transliterated = strtr(mb_strtolower($name, 'UTF-8'), $transliterationMap);
+        
+        // Разбиваем на слова
+        $words = array_filter(explode(' ', preg_replace('/[^a-zA-Z0-9\s]/u', '', $transliterated)));
         
         $code = '';
         foreach ($words as $word) {
             $cleanWord = trim($word);
             if (!empty($cleanWord) && !in_array(mb_strtolower($cleanWord), $ignoreWords)) {
-                $code .= strtoupper(mb_substr($cleanWord, 0, 1));
+                $code .= strtoupper(substr($cleanWord, 0, 1));
                 if (strlen($code) >= 3) break; // Максимум 3 буквы
             }
         }
         
-        // Если код слишком короткий, берем первые буквы из названия
-        if (strlen($code) < 2) {
-            $cleaned = preg_replace('/[^a-zA-Zа-яА-Я]/u', '', $name);
+        // Если код слишком короткий, берем первые 3 символа из транслитерированного названия
+        if (strlen($code) < 3) {
+            $cleaned = preg_replace('/[^a-zA-Z]/u', '', $transliterated);
             $code = strtoupper(substr($cleaned, 0, 3));
         }
         

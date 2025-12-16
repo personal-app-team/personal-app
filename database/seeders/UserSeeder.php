@@ -19,22 +19,46 @@ class UserSeeder extends Seeder
         
         $contractor1 = Contractor::create([
             'name' => 'ООО "СтройМонтаж"',
+            'contractor_code' => 'SMT',
             'contact_person' => 'Петров Алексей Сергеевич',
             'phone' => '+79991234561',
             'email' => 'info@stroymontag.ru',
             'is_active' => true,
-            'specializations' => [],
+            'specializations' => ['строительство', 'монтаж'],
         ]);
         
         $contractor2 = Contractor::create([
-            'name' => 'ИП "ЭлектроСервис"',
+            'name' => 'ООО "ЭлектроСервис"',
+            'contractor_code' => 'ELS',
             'contact_person' => 'Иванова Мария Владимировна',
             'phone' => '+79991234562',
             'email' => 'info@electroservice.ru',
             'is_active' => true,
-            'specializations' => [],
+            'specializations' => ['электрика', 'обслуживание'],
+        ]);
+
+        // Создаем еще подрядчиков с разными префиксами
+        $contractor3 = Contractor::create([
+            'name' => 'ООО "КлинингПро"',
+            'contractor_code' => 'CLP',
+            'contact_person' => 'Сидорова Ольга Петровна',
+            'phone' => '+79991234563',
+            'email' => 'info@cleaningpro.ru',
+            'is_active' => true,
+            'specializations' => ['уборка', 'клининг'],
+        ]);
+
+        $contractor4 = Contractor::create([
+            'name' => 'ООО "ЛандшафтныйДизайн"',
+            'contractor_code' => 'LDS',
+            'contact_person' => 'Козлов Иван Михайлович',
+            'phone' => '+79991234564',
+            'email' => 'info@landdesign.ru',
+            'is_active' => true,
+            'specializations' => ['ландшафт', 'озеленение'],
         ]);
         
+        // ... остальная часть сидера без изменений
         // 1. Инициаторы (3 пользователя)
         $this->command->info('📋 Создание инициаторов...');
         for ($i = 1; $i <= 3; $i++) {
@@ -198,6 +222,7 @@ class UserSeeder extends Seeder
         
         $this->command->info('🎉 Все тестовые пользователи созданы!');
         $this->command->info('📊 Статистика:');
+        $this->command->info('  • Подрядчики: 4');
         $this->command->info('  • Инициаторы: 3');
         $this->command->info('  • Диспетчеры: 2');
         $this->command->info('  • Наши исполнители: 10');

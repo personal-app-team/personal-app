@@ -37,6 +37,11 @@ class WorkRequestResource extends Resource
                             ->disabled()
                             ->default('auto-generated'),
 
+                        Forms\Components\TextInput::make('external_number')
+                            ->label('Внешний номер')
+                            ->maxLength(255)
+                            ->placeholder('Для интеграций с внешними системами'),
+
                         Forms\Components\Select::make('initiator_id')
                             ->label('Инициатор')
                             ->relationship('initiator', 'name')
@@ -118,18 +123,18 @@ class WorkRequestResource extends Resource
                         Forms\Components\Select::make('personnel_type')
                             ->label('Тип персонала')
                             ->options([
-                                WorkRequest::PERSONNEL_OUR => 'Наш персонал',
+                                WorkRequest::PERSONNEL_OUR_STAFF => 'Наш персонал',
                                 WorkRequest::PERSONNEL_CONTRACTOR => 'Подрядчик',
                             ])
                             ->required()
                             ->live()
-                            ->default(WorkRequest::PERSONNEL_OUR)
-                            ->rules(['in:our,contractor'])
+                            ->default(WorkRequest::PERSONNEL_OUR_STAFF)
+                            ->rules(['in:our_staff,contractor'])
                             ->afterStateUpdated(function ($state, Forms\Set $set) {
                                 // Сбрасываем зависимые поля при смене типа
-                                if ($state === WorkRequest::PERSONNEL_OUR) {
+                                if ($state === WorkRequest::PERSONNEL_OUR_STAFF) {
                                     $set('contractor_id', null);
-                                    $set('mass_personnel_names', null);
+                                    $set('desired_workers', null);
                                 }
                             }),
 
@@ -141,8 +146,8 @@ class WorkRequestResource extends Resource
                             ->visible(fn ($get) => $get('personnel_type') === WorkRequest::PERSONNEL_CONTRACTOR)
                             ->required(fn ($get) => $get('personnel_type') === WorkRequest::PERSONNEL_CONTRACTOR),
 
-                        Forms\Components\Textarea::make('mass_personnel_names')
-                            ->label('ФИО массового персонала')
+                        Forms\Components\Textarea::make('desired_workers')
+                            ->label('Желаемые исполнители (ФИО)')
                             ->rows(3)
                             ->maxLength(1000)
                             ->placeholder('Иванов Иван, Петров Петр...')
@@ -164,17 +169,28 @@ class WorkRequestResource extends Resource
                             ->displayFormat('H:i'),
 
                         Forms\Components\TextInput::make('workers_count')
-                            ->label('Количество рабочих')
+                            ->label('Количество людей')
                             ->numeric()
                             ->required()
                             ->minValue(1),
 
-                        Forms\Components\TextInput::make('estimated_shift_duration')
-                            ->label('Ориентировочная продолжительность смены (часы)')
+                        Forms\Components\TextInput::make('estimated_duration_minutes')
+                            ->label('Планируемая продолжительность (часы)')
                             ->numeric()
                             ->required()
-                            ->minValue(1)
-                            ->step(0.5),
+                            ->minValue(0.5)
+                            ->step(0.5)
+                            ->afterStateHydrated(function ($component, $state) {
+                                // Преобразуем минуты в часы для отображения
+                                if ($state) {
+                                    $component->state($state / 60);
+                                }
+                            })
+                            ->dehydrateStateUsing(function ($state) {
+                                // Преобразуем часы в минуты для сохранения
+                                return (float) $state * 60;
+                            })
+                            ->helperText('Введите количество часов (0.5 = 30 минут)'),
                     ])->columns(2),
 
                 Forms\Components\Section::make('Статус и дополнительно')
@@ -182,7 +198,6 @@ class WorkRequestResource extends Resource
                         Forms\Components\Select::make('status')
                             ->label('Статус')
                             ->options([
-                                'draft' => 'Черновик',
                                 WorkRequest::STATUS_PUBLISHED => 'Опубликована',
                                 WorkRequest::STATUS_IN_PROGRESS => 'Взята в работу',
                                 WorkRequest::STATUS_CLOSED => 'Заявка закрыта',
@@ -193,7 +208,7 @@ class WorkRequestResource extends Resource
                                 WorkRequest::STATUS_CANCELLED => 'Заявка отменена',
                             ])
                             ->required()
-                            ->default('draft'),
+                            ->default(WorkRequest::STATUS_PUBLISHED),
 
                         Forms\Components\Select::make('dispatcher_id')
                             ->label('Диспетчер')
@@ -228,6 +243,11 @@ class WorkRequestResource extends Resource
                     ->searchable()
                     ->sortable(),
 
+                Tables\Columns\TextColumn::make('external_number')
+                    ->label('Внешний номер')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 Tables\Columns\TextColumn::make('work_date')
                     ->label('Дата работ')
                     ->date('d.m.Y')
@@ -258,12 +278,12 @@ class WorkRequestResource extends Resource
                 Tables\Columns\TextColumn::make('personnel_type')
                     ->label('Тип персонала')
                     ->formatStateUsing(fn ($state) => match($state) {
-                        WorkRequest::PERSONNEL_OUR => 'Наш персонал',
+                        WorkRequest::PERSONNEL_OUR_STAFF => 'Наш персонал',
                         WorkRequest::PERSONNEL_CONTRACTOR => 'Подрядчик',
                         default => $state,
                     })
                     ->badge()
-                    ->color(fn ($state) => $state === WorkRequest::PERSONNEL_OUR ? 'success' : 'warning'),
+                    ->color(fn ($state) => $state === WorkRequest::PERSONNEL_OUR_STAFF ? 'success' : 'warning'),
 
                 Tables\Columns\TextColumn::make('contractor.name')
                     ->label('Подрядчик')
@@ -276,22 +296,21 @@ class WorkRequestResource extends Resource
                     ->label('Кол-во')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('estimated_shift_duration')
+                Tables\Columns\TextColumn::make('estimated_duration_minutes')
                     ->label('Продолжительность')
-                    ->suffix(' ч')
+                    ->formatStateUsing(fn ($state) => round($state / 60, 1) . ' ч')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('mass_personnel_names')
-                    ->label('Исполнители')
+                Tables\Columns\TextColumn::make('desired_workers')
+                    ->label('Желаемые исполнители')
                     ->limit(30)
-                    ->tooltip(fn ($record) => $record->mass_personnel_names)
+                    ->tooltip(fn ($record) => $record->desired_workers)
                     ->placeholder('Не указаны'),
 
                 Tables\Columns\TextColumn::make('status')
                     ->label('Статус')
                     ->badge()
                     ->color(fn ($state) => match($state) {
-                        'draft' => 'gray',
                         WorkRequest::STATUS_PUBLISHED => 'info',
                         WorkRequest::STATUS_IN_PROGRESS => 'warning',
                         WorkRequest::STATUS_CLOSED => 'success',
@@ -318,7 +337,6 @@ class WorkRequestResource extends Resource
                 Tables\Filters\SelectFilter::make('status')
                     ->label('Статус')
                     ->options([
-                        'draft' => 'Черновик',
                         WorkRequest::STATUS_PUBLISHED => 'Опубликована',
                         WorkRequest::STATUS_IN_PROGRESS => 'Взята в работу',
                         WorkRequest::STATUS_CLOSED => 'Заявка закрыта',
@@ -332,7 +350,7 @@ class WorkRequestResource extends Resource
                 Tables\Filters\SelectFilter::make('personnel_type')
                     ->label('Тип персонала')
                     ->options([
-                        WorkRequest::PERSONNEL_OUR => 'Наш персонал',
+                        WorkRequest::PERSONNEL_OUR_STAFF => 'Наш персонал',
                         WorkRequest::PERSONNEL_CONTRACTOR => 'Подрядчик',
                     ]),
 

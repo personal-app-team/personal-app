@@ -22,7 +22,15 @@ class DatabaseSeeder extends Seeder
         $this->call(AdminSeeder::class);
         $this->command->info('✅ Администратор системы создан');
         
-        // 4. Тестовые пользователи с ролями
+        // 4. Категории и специальности
+        $this->call(CategorySpecialtySeeder::class);
+        $this->command->info('✅ Категории и специальности созданы');
+        
+        // 5. Виды работ
+        $this->call(WorkTypeSeeder::class);
+        $this->command->info('✅ Виды работ созданы');
+        
+        // 6. Тестовые пользователи с ролями
         $this->call(UserSeeder::class);
         $this->command->info('✅ Тестовые пользователи созданы');
         

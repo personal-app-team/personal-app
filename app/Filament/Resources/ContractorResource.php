@@ -12,6 +12,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Tabs;
+use Filament\Forms\Components\TextInput;
 
 class ContractorResource extends Resource
 {
@@ -47,6 +48,7 @@ class ContractorResource extends Resource
                                             ->maxLength(10)
                                             ->disabled()
                                             ->helperText('Генерируется автоматически'),
+                                        
                                     ])->columns(2),
 
                                 Section::make('Контактная информация')
@@ -82,6 +84,7 @@ class ContractorResource extends Resource
                                     ])->columns(2),
                             ]),
 
+                        // ... остальные вкладки без изменений
                         Tabs\Tab::make('Налоговая информация')
                             ->icon('heroicon-o-banknotes')
                             ->schema([

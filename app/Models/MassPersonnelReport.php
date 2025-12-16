@@ -15,14 +15,14 @@ class MassPersonnelReport extends Model
     protected $fillable = [
         'request_id',
         'workers_count',
-        'total_hours', 
+        'total_hours',
         'worker_names',
         'compensation_amount',
         'compensation_description',
         'tax_status_id',
         'contract_type_id',
-        'category_id', 
-        'specialty_id',
+        'category_id',
+        'contractor_rate_id',
         'work_type_id',
         'base_hourly_rate',
         'total_amount',
@@ -31,7 +31,7 @@ class MassPersonnelReport extends Model
         'net_amount',
         'status',
         'submitted_at',
-        'approved_at', 
+        'approved_at',
         'paid_at'
     ];
 
@@ -48,14 +48,12 @@ class MassPersonnelReport extends Model
         'paid_at' => 'datetime',
     ];
 
-    // === ЛОГИРОВАНИЕ ===
-    
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
             ->logOnly([
                 'request_id', 'workers_count', 'total_hours', 'compensation_amount',
-                'tax_status_id', 'contract_type_id', 'category_id', 'specialty_id',
+                'tax_status_id', 'contract_type_id', 'category_id', 'contractor_rate_id',
                 'work_type_id', 'base_hourly_rate', 'total_amount', 'expenses_total',
                 'tax_amount', 'net_amount', 'status', 'submitted_at', 'approved_at', 'paid_at'
             ])
@@ -92,8 +90,6 @@ class MassPersonnelReport extends Model
         ]);
     }
 
-    // === СВЯЗИ ===
-
     public function photos()
     {
         return $this->morphMany(Photo::class, 'photoable');
@@ -103,7 +99,7 @@ class MassPersonnelReport extends Model
     {
         return $this->hasMany(ContractorWorker::class);
     }
-    
+
     public function workRequest()
     {
         return $this->belongsTo(WorkRequest::class, 'request_id');
@@ -124,9 +120,9 @@ class MassPersonnelReport extends Model
         return $this->belongsTo(Category::class);
     }
 
-    public function specialty()
+    public function contractorRate()
     {
-        return $this->belongsTo(Specialty::class);
+        return $this->belongsTo(ContractorRate::class);
     }
 
     public function workType()
@@ -154,38 +150,36 @@ class MassPersonnelReport extends Model
         return $this->expenses()->sum("amount");
     }
 
-    // === РАСЧЕТНЫЕ МЕТОДЫ ===
-
-    /**
-     * Рассчитать общую сумму
-     */
     public function calculateTotalAmount()
     {
+        // Если базовая ставка не установлена, определяем ее
+        if (!$this->base_hourly_rate) {
+            $this->base_hourly_rate = $this->determineBaseRate();
+            $this->save();
+        }
+        
         $baseAmount = $this->base_hourly_rate * $this->total_hours;
         $compensation = $this->compensation_amount;
         $expenses = $this->expenses_total;
-        
-        // Сумма по всем подтвержденным работникам
+
         $workersTotal = $this->contractorWorkers()
             ->confirmed()
             ->get()
             ->sum('amount');
-        
+
         return $baseAmount + $compensation + $expenses + $workersTotal;
     }
 
     public function getTotalHoursAttribute()
     {
-        // Если есть подтвержденные работники, считаем по ним
         if ($this->contractorWorkers()->confirmed()->exists()) {
             return $this->contractorWorkers()
                 ->confirmed()
                 ->get()
                 ->sum('calculated_hours');
         }
-        
-        // Иначе берем из поля total_hours или считаем по локациям
-        return $this->getAttribute('total_hours') ?? 
+
+        return $this->getAttribute('total_hours') ??
             $this->visitedLocations->sum('duration_minutes') / 60;
     }
 
@@ -194,7 +188,6 @@ class MassPersonnelReport extends Model
         return $this->contractorWorkers()->confirmed()->count();
     }
 
-    // И геттер для worker_names (для обратной совместимости):
     public function getWorkerNamesAttribute()
     {
         return $this->contractorWorkers()
@@ -204,7 +197,6 @@ class MassPersonnelReport extends Model
             ->implode(', ');
     }
 
-    // Метод для подтверждения всех работников диспетчером
     public function confirmAllWorkers($userId, $reason = null)
     {
         foreach ($this->contractorWorkers()->unconfirmed()->get() as $worker) {
@@ -212,49 +204,35 @@ class MassPersonnelReport extends Model
         }
     }
 
-    /**
-     * Рассчитать сумму налога
-     */
     public function calculateTaxAmount()
     {
         $totalAmount = $this->total_amount ?: $this->calculateTotalAmount();
         $taxRate = $this->taxStatus?->tax_rate ?? 0;
-        
+
         return $totalAmount * $taxRate;
     }
 
-    /**
-     * Рассчитать чистую сумму (к выплате)
-     */
     public function calculateNetAmount()
     {
         $totalAmount = $this->total_amount ?: $this->calculateTotalAmount();
         $taxAmount = $this->tax_amount ?: $this->calculateTaxAmount();
-        
+
         return $totalAmount - $taxAmount;
     }
 
-    /**
-     * Обновить все расчеты
-     */
     public function updateCalculations()
     {
         $this->total_amount = $this->calculateTotalAmount();
         $this->tax_amount = $this->calculateTaxAmount();
         $this->net_amount = $this->calculateNetAmount();
-        
+
         $this->save();
     }
 
-    /**
-     * Получить общее время из посещенных локаций
-     */
     public function getTotalTimeFromLocations()
     {
         return $this->visitedLocations()->sum('duration_minutes') / 60;
     }
-
-    // === СТАТУСНЫЕ МЕТОДЫ ===
 
     public function submitForApproval()
     {
@@ -262,7 +240,7 @@ class MassPersonnelReport extends Model
             'status' => 'pending_approval',
             'submitted_at' => now()
         ]);
-        
+
         activity()
             ->performedOn($this)
             ->log('Отчет отправлен на утверждение');
@@ -271,10 +249,10 @@ class MassPersonnelReport extends Model
     public function approve()
     {
         $this->update([
-            'status' => 'approved', 
+            'status' => 'approved',
             'approved_at' => now()
         ]);
-        
+
         activity()
             ->performedOn($this)
             ->log('Отчет утвержден');
@@ -286,9 +264,34 @@ class MassPersonnelReport extends Model
             'status' => 'paid',
             'paid_at' => now()
         ]);
-        
+
         activity()
             ->performedOn($this)
             ->log('Отчет отмечен как оплаченный');
+    }
+
+    public function determineBaseRate(): float
+    {
+        if ($this->contractor_rate_id) {
+            $contractorRate = $this->contractorRate;
+            if ($contractorRate && $contractorRate->is_active) {
+                return (float) $contractorRate->hourly_rate;
+            }
+        }
+
+        if ($this->category_id) {
+            $contractorRate = ContractorRate::where('category_id', $this->category_id)
+                ->where('rate_type', 'mass')
+                ->where('is_active', true)
+                ->first();
+
+            if ($contractorRate) {
+                $this->contractor_rate_id = $contractorRate->id;
+                $this->save();
+                return (float) $contractorRate->hourly_rate;
+            }
+        }
+
+        return 0.0;
     }
 }

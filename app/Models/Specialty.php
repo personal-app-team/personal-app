@@ -31,12 +31,8 @@ class Specialty extends Model
     public function users()
     {
         return $this->belongsToMany(User::class, 'user_specialties')
-                    ->withTimestamps();
-    }
-
-    public function contractorRates()
-    {
-        return $this->hasMany(ContractorRate::class);
+                    ->withTimestamps()
+                    ->withPivot('base_hourly_rate');
     }
 
     public function shifts()
@@ -44,42 +40,23 @@ class Specialty extends Model
         return $this->hasMany(Shift::class);
     }
 
-    public function massPersonnelReports()
-    {
-        return $this->hasMany(MassPersonnelReport::class);
-    }
-
     // === БИЗНЕС-ЛОГИКА ===
-
-    /**
-     * Получить активные специальности
-     */
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
     }
 
-    /**
-     * Получить специальности по категории
-     */
     public function scopeByCategory($query, $categoryId)
     {
         return $query->where('category_id', $categoryId);
     }
 
     // === АКСЕССОРЫ ===
-
-    /**
-     * Полное название с категорией
-     */
     public function getFullNameAttribute()
     {
         return $this->category ? $this->category->name . ' - ' . $this->name : $this->name;
     }
 
-    /**
-     * Отформатированная ставка
-     */
     public function getFormattedRateAttribute()
     {
         return number_format($this->base_hourly_rate, 2) . ' руб/час';

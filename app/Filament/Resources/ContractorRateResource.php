@@ -52,7 +52,7 @@ class ContractorRateResource extends Resource
                             ->label('Название специальности у подрядчика')
                             ->required()
                             ->maxLength(255)
-                            ->helperText('Как эта специальность называется у подрядчика (например: "Монтажник-высотник")'),
+                            ->helperText('Как эта специальность называется у подрядчика'),
 
                         Forms\Components\TextInput::make('hourly_rate')
                             ->label('Ставка (руб/час)')
@@ -60,8 +60,7 @@ class ContractorRateResource extends Resource
                             ->numeric()
                             ->minValue(0)
                             ->step(1)
-                            ->placeholder('0')
-                            ->helperText('Почасовая ставка для этой специальности'),
+                            ->placeholder('0'),
 
                         Forms\Components\Select::make('rate_type')
                             ->label('Тип ставки')
@@ -71,21 +70,16 @@ class ContractorRateResource extends Resource
                             ])
                             ->required()
                             ->native(false)
-                            ->helperText('Массовый - для обезличенного персонала, Персонализированный - для конкретных исполнителей'),
+                            ->helperText('Массовый - для отчетов, Персонализированный - для смен'),
                     ])->columns(2),
 
-                Forms\Components\Section::make('Дополнительные настройки')
+                Forms\Components\Section::make('Статус')
                     ->schema([
-                        Forms\Components\Toggle::make('is_anonymous')
-                            ->label('Обезличенный персонал')
-                            ->default(false)
-                            ->helperText('Если включено - ставка применяется для обезличенного персонала (без конкретных исполнителей)'),
-
                         Forms\Components\Toggle::make('is_active')
                             ->label('Активная ставка')
                             ->default(true)
                             ->helperText('Неактивные ставки не будут использоваться в расчетах'),
-                    ])->columns(2),
+                    ]),
             ]);
     }
 
@@ -110,24 +104,16 @@ class ContractorRateResource extends Resource
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('rate_type')
-                    ->label('Тип ставки')
+                    ->label('Тип')
                     ->formatStateUsing(fn ($state) => $state === 'mass' ? 'Массовая' : 'Персонализированная')
                     ->badge()
-                    ->color(fn ($state) => $state === 'mass' ? 'success' : 'primary'),
+                    ->color(fn ($state) => $state === 'mass' ? 'warning' : 'primary'),
 
                 Tables\Columns\TextColumn::make('hourly_rate')
                     ->label('Ставка')
                     ->money('RUB')
                     ->sortable()
-                    ->formatStateUsing(fn ($state) => number_format($state, 0, ',', ' ') . ' ₽/час'),
-
-                Tables\Columns\IconColumn::make('is_anonymous')
-                    ->label('Обезличенный')
-                    ->boolean()
-                    ->trueIcon('heroicon-o-user-group')
-                    ->falseIcon('heroicon-o-user')
-                    ->trueColor('warning')
-                    ->falseColor('success'),
+                    ->suffix('/час'),
 
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Активно')
@@ -160,12 +146,6 @@ class ContractorRateResource extends Resource
                         'mass' => 'Массовая',
                         'personalized' => 'Персонализированная',
                     ]),
-
-                Tables\Filters\TernaryFilter::make('is_anonymous')
-                    ->label('Тип персонала')
-                    ->placeholder('Все')
-                    ->trueLabel('Только обезличенные')
-                    ->falseLabel('Только персонализированные'),
 
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Активные ставки')

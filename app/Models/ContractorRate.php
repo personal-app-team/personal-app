@@ -15,13 +15,11 @@ class ContractorRate extends Model
         'specialty_name',
         'hourly_rate',
         'rate_type',
-        'is_anonymous',
         'is_active',
     ];
 
     protected $casts = [
         'hourly_rate' => 'decimal:2',
-        'is_anonymous' => 'boolean',
         'is_active' => 'boolean',
     ];
 

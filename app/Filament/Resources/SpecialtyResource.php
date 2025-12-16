@@ -100,26 +100,12 @@ class SpecialtyResource extends Resource
                     ->badge()
                     ->color(fn ($state) => $state > 0 ? 'success' : 'gray'),
                     
-                Tables\Columns\TextColumn::make('contractor_rates_count')
-                    ->label('Ставок подрядчиков')
-                    ->counts('contractorRates')
-                    ->sortable()
-                    ->badge()
-                    ->color(fn ($state) => $state > 0 ? 'info' : 'gray'),
-                    
                 Tables\Columns\TextColumn::make('shifts_count')
                     ->label('Смен')
                     ->counts('shifts')
                     ->sortable()
                     ->badge()
                     ->color(fn ($state) => $state > 0 ? 'warning' : 'gray'),
-                    
-                Tables\Columns\TextColumn::make('mass_personnel_reports_count')
-                    ->label('Отчетов')
-                    ->counts('massPersonnelReports')
-                    ->sortable()
-                    ->badge()
-                    ->color(fn ($state) => $state > 0 ? 'primary' : 'gray'),
                     
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Активно')
@@ -166,7 +152,7 @@ class SpecialtyResource extends Resource
     public static function getRelations(): array
     {
         return [
-            // RelationManagers\UsersRelationManager::class,
+            // Убрано - связь с contractor_rates больше не существует
             // RelationManagers\ContractorRatesRelationManager::class,
         ];
     }

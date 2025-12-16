@@ -258,9 +258,7 @@ class Shift extends Model
 
     // === МЕТОДЫ РАСЧЕТОВ ===
 
-    /**
-     * Определить базовую ставку для смены
-     */
+    // Определить базовую ставку для смены
     public function determineBaseRate()
     {
         // 1. Если это наш исполнитель (не подрядчик)
@@ -272,27 +270,20 @@ class Shift extends Model
             return $userSpecialty->pivot->base_hourly_rate ?? $this->specialty->base_hourly_rate ?? 0;
         }
         
-        // 2. Если это подрядчик (персонализированный или массовый)
+        // 2. Если это подрядчик - ТОЛЬКО ПЕРСОНАЛИЗИРОВАННЫЙ через contractor_rate_id
         if ($this->contractor_rate_id) {
-            return $this->contractorRate->hourly_rate ?? 0;
-        }
-        
-        // 3. Если это подрядчик без конкретной ставки (устаревшая логика)
-        if ($this->user_id && $this->user->contractor_id && $this->specialty_id) {
-            // Попробуем найти ставку по категории и названию специальности
-            $specialty = \App\Models\Specialty::find($this->specialty_id);
-            if ($specialty) {
-                $rate = \App\Models\ContractorRate::where('contractor_id', $this->user->contractor_id)
-                    ->where('category_id', $specialty->category_id)
-                    ->where('specialty_name', $specialty->name)
-                    ->active()
-                    ->first();
-                    
-                return $rate?->hourly_rate ?? 0;
+            $contractorRate = $this->contractorRate;
+            // Проверяем, что ставка активна и персонализированная
+            if ($contractorRate && $contractorRate->is_active && $contractorRate->rate_type === 'personalized') {
+                return (float) $contractorRate->hourly_rate;
             }
+            // Если ставка массовая - это ошибка данных
+            \Log::error('Смена Shift#' . $this->id . ' использует массовую ставку подрядчика');
+            return 0;
         }
         
-        return 0;
+        // 3. Устаревшая логика - выбрасываем исключение
+        throw new \Exception('Смена не имеет корректных данных для определения ставки. Shift ID: ' . $this->id);
     }
 
     /**

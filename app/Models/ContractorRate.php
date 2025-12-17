@@ -61,6 +61,17 @@ class ContractorRate extends Model
         return $this->rate_type === 'personalized';
     }
 
+    // accessors
+    public function getRateDisplayAttribute()
+    {
+        return "{$this->rate_amount} ₽ " . match($this->rate_type) {
+            'hourly' => '/час',
+            'daily' => '/день',
+            'project' => 'проект',
+            default => '',
+        } . " ({$this->specialty?->name})";
+    }
+
     /**
      * Полное название
      */

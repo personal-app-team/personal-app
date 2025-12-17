@@ -3,16 +3,13 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ContractorResource\Pages;
+use App\Filament\Resources\ContractorResource\RelationManagers;
 use App\Models\Contractor;
-use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Tabs;
-use Filament\Forms\Components\TextInput;
 
 class ContractorResource extends Resource
 {
@@ -30,12 +27,12 @@ class ContractorResource extends Resource
     {
         return $form
             ->schema([
-                Tabs::make('Подрядчик')
+                Forms\Components\Tabs::make('Подрядчик')
                     ->tabs([
-                        Tabs\Tab::make('Основная информация')
-                            ->icon('heroicon-o-information-circle')
+                        Forms\Components\Tabs\Tab::make('Реквизиты компании')
+                            ->icon('heroicon-o-building-office')
                             ->schema([
-                                Section::make('Реквизиты компании')
+                                Forms\Components\Section::make('Основные реквизиты')
                                     ->schema([
                                         Forms\Components\TextInput::make('name')
                                             ->label('Название компании')
@@ -48,131 +45,105 @@ class ContractorResource extends Resource
                                             ->maxLength(10)
                                             ->disabled()
                                             ->helperText('Генерируется автоматически'),
-                                        
+                                            
+                                        Forms\Components\TextInput::make('inn')
+                                            ->label('ИНН')
+                                            ->maxLength(12)
+                                            ->nullable()
+                                            ->helperText('12 цифр'),
                                     ])->columns(2),
 
-                                Section::make('Контактная информация')
+                                Forms\Components\Section::make('Адрес и банковские реквизиты')
                                     ->schema([
-                                        Forms\Components\TextInput::make('contact_person')
-                                            ->label('Контактное лицо (ФИО)')
-                                            ->required()
-                                            ->maxLength(255),
+                                        Forms\Components\Textarea::make('address')
+                                            ->label('Юридический адрес')
+                                            ->rows(2)
+                                            ->nullable()
+                                            ->columnSpanFull(),
                                             
-                                        Forms\Components\TextInput::make('contact_person_phone')
-                                            ->label('Телефон контактного лица')
+                                        Forms\Components\Textarea::make('bank_details')
+                                            ->label('Банковские реквизиты')
+                                            ->rows(3)
+                                            ->nullable()
+                                            ->columnSpanFull(),
+                                    ]),
+                            ]),
+
+                        Forms\Components\Tabs\Tab::make('Контактная информация')
+                            ->icon('heroicon-o-phone')
+                            ->schema([
+                                Forms\Components\Section::make('Руководитель компании')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('director')
+                                            ->label('ФИО руководителя')
+                                            ->maxLength(255)
+                                            ->nullable(),
+                                            
+                                        Forms\Components\TextInput::make('director_phone')
+                                            ->label('Телефон руководителя')
                                             ->tel()
                                             ->maxLength(20)
                                             ->nullable(),
                                             
-                                        Forms\Components\TextInput::make('contact_person_email')
-                                            ->label('Email контактного лица')
+                                        Forms\Components\TextInput::make('director_email')
+                                            ->label('Email руководителя')
                                             ->email()
                                             ->maxLength(255)
                                             ->nullable(),
-                                            
-                                        Forms\Components\TextInput::make('phone')
+                                    ])->columns(2),
+
+                                Forms\Components\Section::make('Контакты компании')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('company_phone')
                                             ->label('Основной телефон компании')
-                                            ->required()
                                             ->tel()
-                                            ->maxLength(255),
+                                            ->maxLength(20)
+                                            ->nullable(),
                                             
-                                        Forms\Components\TextInput::make('email')
+                                        Forms\Components\TextInput::make('company_email')
                                             ->label('Основной email компании')
-                                            ->required()
                                             ->email()
-                                            ->maxLength(255),
+                                            ->maxLength(255)
+                                            ->nullable(),
                                     ])->columns(2),
                             ]),
 
-                        // ... остальные вкладки без изменений
-                        Tabs\Tab::make('Налоговая информация')
+                        Forms\Components\Tabs\Tab::make('Налоги и договор')
                             ->icon('heroicon-o-banknotes')
                             ->schema([
-                                Section::make('Договор и налоги')
+                                Forms\Components\Section::make('Договорные отношения')
                                     ->schema([
                                         Forms\Components\Select::make('contract_type_id')
                                             ->label('Тип договора')
                                             ->relationship('contractType', 'name')
                                             ->searchable()
                                             ->preload()
-                                            ->live()
-                                            ->nullable()
-                                            ->afterStateUpdated(function ($set, $state) {
-                                                $set('tax_status_id', null);
-                                            }),
+                                            ->nullable(),
                                             
                                         Forms\Components\Select::make('tax_status_id')
                                             ->label('Налоговый статус')
-                                            ->relationship(
-                                                name: 'taxStatus',
-                                                titleAttribute: 'name',
-                                                modifyQueryUsing: fn ($query, callable $get) => 
-                                                    $query->where('contract_type_id', $get('contract_type_id'))
-                                                        ->where('is_active', true)
-                                            )
+                                            ->relationship('taxStatus', 'name')
                                             ->searchable()
                                             ->preload()
-                                            ->nullable()
-                                            ->visible(fn (callable $get): bool => (bool) $get('contract_type_id')),
+                                            ->nullable(),
                                     ])->columns(2),
                             ]),
 
-                        Tabs\Tab::make('Дополнительная информация')
-                            ->icon('heroicon-o-document-text')
+                        Forms\Components\Tabs\Tab::make('Дополнительно')
+                            ->icon('heroicon-o-cog-6-tooth')
                             ->schema([
-                                Section::make('Реквизиты')
+                                Forms\Components\Section::make('Настройки')
                                     ->schema([
-                                        Forms\Components\Textarea::make('address')
-                                            ->label('Юридический адрес')
-                                            ->rows(2)
-                                            ->maxLength(65535)
-                                            ->nullable(),
-                                            
-                                        Forms\Components\TextInput::make('inn')
-                                            ->label('ИНН')
-                                            ->maxLength(12)
-                                            ->nullable(),
-                                            
-                                        Forms\Components\Textarea::make('bank_details')
-                                            ->label('Банковские реквизиты')
-                                            ->rows(3)
-                                            ->maxLength(65535)
-                                            ->nullable(),
-                                    ]),
-
-                                Section::make('Настройки')
-                                    ->schema([
-                                        Forms\Components\TagsInput::make('specializations')
-                                            ->label('Специализации компании')
-                                            ->placeholder('Введите специализацию')
-                                            ->nullable()
-                                            ->helperText('Общие специализации для быстрого поиска'),
+                                        Forms\Components\Toggle::make('is_active')
+                                            ->label('Активный подрядчик')
+                                            ->default(true)
+                                            ->inline(false),
                                             
                                         Forms\Components\Textarea::make('notes')
                                             ->label('Заметки')
-                                            ->rows(2)
-                                            ->maxLength(65535)
-                                            ->nullable(),
-                                            
-                                        Forms\Components\Toggle::make('is_active')
-                                            ->label('Активный подрядчик')
-                                            ->default(true),
-                                    ]),
-                            ]),
-
-                        Tabs\Tab::make('Управление')
-                            ->icon('heroicon-o-cog-6-tooth')
-                            ->schema([
-                                Section::make('Доступ к системе')
-                                    ->schema([
-                                        Forms\Components\Select::make('user_id')
-                                            ->label('User-представитель')
-                                            ->relationship('user', 'email')
-                                            ->searchable()
-                                            ->preload()
-                                            ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->full_name} ({$record->email})")
-                                            ->helperText('Пользователь с ролью contractor_admin')
-                                            ->nullable(),
+                                            ->rows(3)
+                                            ->nullable()
+                                            ->columnSpanFull(),
                                     ]),
                             ]),
                     ])->columnSpanFull(),
@@ -190,18 +161,18 @@ class ContractorResource extends Resource
                     ->weight('medium')
                     ->description(fn ($record) => $record->contractor_code ? "Код: {$record->contractor_code}" : null),
                     
-                Tables\Columns\TextColumn::make('contact_person')
-                    ->label('Контактное лицо')
+                Tables\Columns\TextColumn::make('director')
+                    ->label('Руководитель')
                     ->searchable()
                     ->toggleable(),
                     
-                Tables\Columns\TextColumn::make('phone')
-                    ->label('Телефон')
+                Tables\Columns\TextColumn::make('company_phone')
+                    ->label('Телефон компании')
                     ->searchable()
                     ->toggleable(),
                     
-                Tables\Columns\TextColumn::make('email')
-                    ->label('Email')
+                Tables\Columns\TextColumn::make('company_email')
+                    ->label('Email компании')
                     ->searchable()
                     ->toggleable(),
 
@@ -246,13 +217,11 @@ class ContractorResource extends Resource
                     ->searchable()
                     ->preload(),
                     
-                Tables\Filters\Filter::make('has_user')
-                    ->label('С представителем')
-                    ->query(fn ($query) => $query->whereNotNull('user_id')),
-                    
-                Tables\Filters\Filter::make('has_rates')
-                    ->label('Со ставками')
-                    ->query(fn ($query) => $query->whereHas('contractorRates')),
+                Tables\Filters\SelectFilter::make('tax_status_id')
+                    ->label('Налоговый статус')
+                    ->relationship('taxStatus', 'name')
+                    ->searchable()
+                    ->preload(),
             ])
             ->actions([
                 Tables\Actions\Action::make('rates')
@@ -265,15 +234,15 @@ class ContractorResource extends Resource
                     ->badge(fn ($record) => $record->contractorRates()->count())
                     ->badgeColor('success'),
                     
-                Tables\Actions\Action::make('executors')
-                    ->label('Исполнители')
-                    ->icon('heroicon-o-users')
-                    ->url(fn (Contractor $record) => UserResource::getUrl('index', [
-                        'tableFilters[contractor][values]' => [$record->id]
+                Tables\Actions\Action::make('work_requests')
+                    ->label('Заявки')
+                    ->icon('heroicon-o-document-text')
+                    ->url(fn (Contractor $record) => WorkRequestResource::getUrl('index', [
+                        'tableFilters[contractor_id][values]' => [$record->id]
                     ]))
-                    ->color('gray')
-                    ->badge(fn ($record) => $record->executors()->count())
-                    ->badgeColor('gray'),
+                    ->color('info')
+                    ->badge(fn ($record) => $record->workRequests()->count())
+                    ->badgeColor('info'),
                     
                 Tables\Actions\EditAction::make()
                     ->label('Редактировать'),
@@ -299,7 +268,9 @@ class ContractorResource extends Resource
     public static function getRelations(): array
     {
         return [
-            // Можно добавить RelationManager для ставок, но пока используем действие "Ставки"
+            RelationManagers\ContractorRatesRelationManager::class,
+            RelationManagers\WorkRequestsRelationManager::class,
+            RelationManagers\UsersRelationManager::class,
         ];
     }
 

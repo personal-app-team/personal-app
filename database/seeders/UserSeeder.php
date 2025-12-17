@@ -4,6 +4,8 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use App\Models\Contractor;
+use App\Models\ContractType;
+use App\Models\TaxStatus;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
@@ -14,49 +16,88 @@ class UserSeeder extends Seeder
     {
         $this->command->info('👥 Создание тестовых пользователей...');
         
-        // Создаем компании-подрядчики
-        $this->command->info('🏢 Создание компаний-подрядчиков...');
+        // Получаем типы договоров и налоговые статусы
+        $contractType = ContractType::first();
+        $taxStatus = TaxStatus::first();
         
+        if (!$contractType || !$taxStatus) {
+            $this->command->error('❌ Сначала запустите сидер ContractTypeTaxStatusSeeder!');
+            return;
+        }
+
+        // Создаем компании-подрядчики с НОВОЙ структурой
+        $this->command->info('🏢 Создание компаний-подрядчиков...');
+
+        // Создаем подрядчиков с правильными кодами
         $contractor1 = Contractor::create([
             'name' => 'ООО "СтройМонтаж"',
-            'contractor_code' => 'SMT',
-            'contact_person' => 'Петров Алексей Сергеевич',
-            'phone' => '+79991234561',
-            'email' => 'info@stroymontag.ru',
+            'contractor_code' => 'SMT', // Явно задаем осмысленный код
+            'inn' => '7701234567',
+            'address' => 'г. Москва, ул. Строителей, д. 1',
+            'bank_details' => 'Банк ВТБ, р/с 40702810123456789001, к/с 30101810700000000187, БИК 044525187',
+            'director' => 'Петров Алексей Сергеевич',
+            'director_phone' => '+79991234561',
+            'director_email' => 'petrov@stroymontag.ru',
+            'company_phone' => '+74951234561',
+            'company_email' => 'info@stroymontag.ru',
+            'contract_type_id' => $contractType->id,
+            'tax_status_id' => $taxStatus->id,
             'is_active' => true,
-            'specializations' => ['строительство', 'монтаж'],
-        ]);
-        
-        $contractor2 = Contractor::create([
-            'name' => 'ООО "ЭлектроСервис"',
-            'contractor_code' => 'ELS',
-            'contact_person' => 'Иванова Мария Владимировна',
-            'phone' => '+79991234562',
-            'email' => 'info@electroservice.ru',
-            'is_active' => true,
-            'specializations' => ['электрика', 'обслуживание'],
+            'notes' => 'Подрядчик на строительно-монтажные работы',
         ]);
 
-        // Создаем еще подрядчиков с разными префиксами
+        $contractor2 = Contractor::create([
+            'name' => 'ООО "ЭлектроСервис"',
+            'contractor_code' => 'ELS', // Явно задаем код
+            'inn' => '7701234568',
+            'address' => 'г. Москва, ул. Электриков, д. 2',
+            'bank_details' => 'Банк ВТБ, р/с 40702810123456789002, к/с 30101810700000000187, БИК 044525187',
+            'director' => 'Иванова Мария Владимировна',
+            'director_phone' => '+79991234562',
+            'director_email' => 'ivanova@electroservice.ru',
+            'company_phone' => '+74951234562',
+            'company_email' => 'info@electroservice.ru',
+            'contract_type_id' => $contractType->id,
+            'tax_status_id' => $taxStatus->id,
+            'is_active' => true,
+            'notes' => 'Подрядчик на электромонтажные работы',
+        ]);
+
         $contractor3 = Contractor::create([
             'name' => 'ООО "КлинингПро"',
-            'contractor_code' => 'CLP',
-            'contact_person' => 'Сидорова Ольга Петровна',
-            'phone' => '+79991234563',
-            'email' => 'info@cleaningpro.ru',
+            'contractor_code' => 'CLP', // Явно задаем код
+            'inn' => '7701234569',
+            'address' => 'г. Москва, ул. Чистая, д. 3',
+            'bank_details' => 'Банк ВТБ, р/с 40702810123456789003, к/с 30101810700000000187, БИК 044525187',
+            'director' => 'Сидорова Ольга Петровна',
+            'director_phone' => '+79991234563',
+            'director_email' => 'sidorova@cleaningpro.ru',
+            'company_phone' => '+74951234563',
+            'company_email' => 'info@cleaningpro.ru',
+            'contract_type_id' => $contractType->id,
+            'tax_status_id' => $taxStatus->id,
             'is_active' => true,
-            'specializations' => ['уборка', 'клининг'],
+            'notes' => 'Подрядчик на клининговые услуги',
         ]);
 
         $contractor4 = Contractor::create([
             'name' => 'ООО "ЛандшафтныйДизайн"',
-            'contractor_code' => 'LDS',
-            'contact_person' => 'Козлов Иван Михайлович',
-            'phone' => '+79991234564',
-            'email' => 'info@landdesign.ru',
+            'contractor_code' => 'LDS', // Явно задаем код
+            'inn' => '7701234570',
+            'address' => 'г. Москва, ул. Зеленая, д. 4',
+            'bank_details' => 'Банк ВТБ, р/с 40702810123456789004, к/с 30101810700000000187, БИК 044525187',
+            'director' => 'Козлов Иван Михайлович',
+            'director_phone' => '+79991234564',
+            'director_email' => 'kozlov@landdesign.ru',
+            'company_phone' => '+74951234564',
+            'company_email' => 'info@landdesign.ru',
+            'contract_type_id' => $contractType->id,
+            'tax_status_id' => $taxStatus->id,
             'is_active' => true,
-            'specializations' => ['ландшафт', 'озеленение'],
+            'notes' => 'Подрядчик на ландшафтные работы',
         ]);
+
+        $this->command->info('✅ Подрядчики созданы с новой структурой');
         
         // ... остальная часть сидера без изменений
         // 1. Инициаторы (3 пользователя)
@@ -117,12 +158,10 @@ class UserSeeder extends Seeder
             'password' => Hash::make('password123'),
             'phone' => '+7999114001',
             'user_type' => 'contractor',
+            'contractor_id' => $contractor1->id, // Связываем с подрядчиком
             'email_verified_at' => now(),
         ]);
         $contractorAdmin->assignRole('contractor_admin');
-        // Связываем пользователя с компанией (как управляющего)
-        $contractor1->user_id = $contractorAdmin->id;
-        $contractor1->save();
         
         // 5. Диспетчеры подрядчика (2 пользователя - привязаны к компании)
         $this->command->info('📞 Создание диспетчеров подрядчика...');

@@ -124,13 +124,13 @@ class MassPersonnelReportResource extends Resource
                             ->preload()
                             ->required(),
                             
-                        Forms\Components\Select::make('specialty_id')
-                            ->label('Специальность')
-                            ->relationship('specialty', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->nullable()
-                            ->helperText('Опционально - уточняющая специальность'),
+                        // Forms\Components\Select::make('specialty_id')
+                        //     ->label('Специальность')
+                        //     ->relationship('specialty', 'name')
+                        //     ->searchable()
+                        //     ->preload()
+                        //     ->nullable()
+                        //     ->helperText('Опционально - уточняющая специальность'),
                             
                         Forms\Components\Select::make('work_type_id')
                             ->label('Вид работ')
@@ -317,11 +317,11 @@ class MassPersonnelReportResource extends Resource
                     ->searchable()
                     ->preload(),
                     
-                Tables\Filters\SelectFilter::make('specialty_id')
-                    ->label('Специальность')
-                    ->relationship('specialty', 'name')
-                    ->searchable()
-                    ->preload(),
+                // Tables\Filters\SelectFilter::make('specialty_id')
+                //     ->label('Специальность')
+                //     ->relationship('specialty', 'name')
+                //     ->searchable()
+                //     ->preload(),
                     
                 Tables\Filters\SelectFilter::make('work_type_id')
                     ->label('Вид работ')

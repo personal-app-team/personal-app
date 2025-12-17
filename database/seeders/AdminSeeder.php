@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 
 class AdminSeeder extends Seeder
 {
@@ -27,8 +28,12 @@ class AdminSeeder extends Seeder
             ]
         );
         
+        // Назначаем роль admin
+        $admin->assignRole('admin');
+        
         $this->command->info('✅ Администратор создан/обновлен');
         $this->command->info('📧 Email: admin@example.com');
         $this->command->info('🔑 Пароль: password123');
+        $this->command->info('👑 Назначена роль: admin');
     }
 }

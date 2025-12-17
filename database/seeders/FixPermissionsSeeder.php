@@ -2,13 +2,11 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
-use Illuminate\Support\Facades\DB;
 
-class FixAllPermissionsSeeder extends Seeder
+class FixPermissionsSeeder extends Seeder
 {
     public function run(): void
     {
@@ -47,7 +45,7 @@ class FixAllPermissionsSeeder extends Seeder
             }
         }
 
-        // Специальные разрешения (не ресурсы)
+        // Специальные разрешения
         $specialPermissions = [
             'access_panel',
             'export_data',
@@ -75,7 +73,7 @@ class FixAllPermissionsSeeder extends Seeder
             $this->command->info('📝 Все разрешения уже существуют');
         }
 
-        // Создаем базовые роли если их нет
+        // Создаем базовые роли
         $roles = ['admin', 'initiator', 'dispatcher', 'executor', 'hr', 'manager', 'contractor_admin', 'contractor_dispatcher', 'contractor_executor', 'trainee', 'viewer'];
         
         foreach ($roles as $roleName) {
@@ -91,15 +89,6 @@ class FixAllPermissionsSeeder extends Seeder
             $allPermissions = Permission::all()->pluck('name')->toArray();
             $adminRole->syncPermissions($allPermissions);
             $this->command->info('👑 Админу назначены все разрешения (' . count($allPermissions) . ')');
-        }
-
-        // Назначаем роль admin пользователю admin@example.com
-        $adminUser = User::where('email', 'admin@example.com')->first();
-        if ($adminUser) {
-            $adminUser->assignRole('admin');
-            $this->command->info('👤 Пользователю admin@example.com назначена роль admin');
-        } else {
-            $this->command->warn('⚠️ Пользователь admin@example.com не найден, создайте его');
         }
 
         $this->command->info('🎉 Разрешения и роли обновлены!');

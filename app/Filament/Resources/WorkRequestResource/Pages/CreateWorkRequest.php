@@ -19,4 +19,16 @@ class CreateWorkRequest extends CreateRecord
     {
         return 'Заявка создана';
     }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\Action::make('close')
+                ->label('Закрыть')
+                ->icon('heroicon-o-x-mark')
+                ->color('gray')
+                ->url($this->getResource()::getUrl('index'))
+                ->extraAttributes(['class' => 'ml-auto']),
+        ];
+    }
 }

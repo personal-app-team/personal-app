@@ -316,6 +316,7 @@ class UserResource extends Resource
     public static function getRelations(): array
     {
         return [
+            RelationManagers\PermissionsRelationManager::class,
             RelationManagers\SpecialtiesRelationManager::class,
             RelationManagers\InitiatedWorkRequestsRelationManager::class,
             RelationManagers\BrigadierWorkRequestsRelationManager::class,

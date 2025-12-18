@@ -9,6 +9,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Spatie\Permission\Models\Permission;
 
 class RoleResource extends Resource
 {
@@ -16,7 +17,6 @@ class RoleResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-key';
     
-    // ДОБАВЛЯЕМ РУССКИЕ LABELS И ГРУППУ
     protected static ?string $navigationGroup = '⚙️ Справочники и настройки';
     protected static ?string $navigationLabel = 'Роли';
     protected static ?int $navigationSort = 60;
@@ -49,13 +49,26 @@ class RoleResource extends Resource
                     
                 Forms\Components\Section::make('Разрешения')
                     ->schema([
-                        Forms\Components\Select::make('permissions')
+                        Forms\Components\CheckboxList::make('permissions')
                             ->relationship('permissions', 'name')
-                            ->multiple()
-                            ->preload()
                             ->searchable()
+                            ->bulkToggleable()
                             ->label('Разрешения')
-                            ->helperText('Выберите разрешения для этой роли'),
+                            ->helperText('Выберите разрешения для этой роли')
+                            ->gridDirection('row')
+                            ->columns(2)
+                            ->getOptionLabelFromRecordUsing(fn (Permission $record) => 
+                                match($record->name) {
+                                    'create_work_requests' => '📋 Создание заявок',
+                                    'view_work_requests' => '👁️ Просмотр заявок',
+                                    'edit_work_requests' => '✏️ Редактирование заявок',
+                                    'delete_work_requests' => '🗑️ Удаление заявок',
+                                    'manage_users' => '👥 Управление пользователями',
+                                    'manage_roles' => '🔑 Управление ролями',
+                                    'manage_permissions' => '🔐 Управление разрешениями',
+                                    default => $record->name
+                                }
+                            ),
                     ]),
             ]);
     }
@@ -76,6 +89,13 @@ class RoleResource extends Resource
                     ->badge()
                     ->color(fn ($state) => $state > 0 ? 'success' : 'gray'),
                     
+                Tables\Columns\TextColumn::make('users_count')
+                    ->counts('users')
+                    ->label('Пользователей')
+                    ->sortable()
+                    ->badge()
+                    ->color('info'),
+                    
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime('d.m.Y H:i')
                     ->sortable()
@@ -92,20 +112,28 @@ class RoleResource extends Resource
                 Tables\Filters\Filter::make('has_permissions')
                     ->label('Только с разрешениями')
                     ->query(fn ($query) => $query->has('permissions')),
+                    
+                Tables\Filters\Filter::make('has_users')
+                    ->label('Только с пользователями')
+                    ->query(fn ($query) => $query->has('users')),
             ])
-            // ОБНОВЛЯЕМ ACTIONS С РУССКИМИ НАЗВАНИЯМИ
             ->actions([
                 Tables\Actions\EditAction::make()
                     ->label('Редактировать'),
                 Tables\Actions\DeleteAction::make()
                     ->label('Удалить'),
             ])
-            // ОБНОВЛЯЕМ BULK ACTIONS
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
                         ->label('Удалить выбранные'),
                 ]),
+            ])
+            ->emptyStateHeading('Нет ролей')
+            ->emptyStateDescription('Создайте первую роль.')
+            ->emptyStateActions([
+                Tables\Actions\CreateAction::make()
+                    ->label('Создать роль'),
             ])
             ->defaultSort('name', 'asc');
     }
@@ -113,7 +141,7 @@ class RoleResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            // Добавим позже RelationManager для пользователей
         ];
     }
 

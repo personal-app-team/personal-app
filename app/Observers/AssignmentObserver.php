@@ -5,9 +5,18 @@ namespace App\Observers;
 use App\Models\Assignment;
 use App\Models\Shift;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class AssignmentObserver
 {
+    public function creating(Assignment $assignment): void
+    {
+        // Автоматически заполняем created_by
+        if (!$assignment->created_by && Auth::check()) {
+            $assignment->created_by = Auth::id();
+        }
+    }
+
     public function updated(Assignment $assignment): void
     {
         // Если это назначение бригадира, статус изменился на "confirmed" и смена еще не создана

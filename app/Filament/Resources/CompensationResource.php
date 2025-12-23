@@ -149,7 +149,7 @@ class CompensationResource extends Resource
                 
                 Forms\Components\Select::make('approved_by')
                     ->label('Утвердил')
-                    ->relationship('approvedBy', 'name')
+                    ->relationship('approvedByUser', 'name')
                     ->searchable()
                     ->preload(),
                 

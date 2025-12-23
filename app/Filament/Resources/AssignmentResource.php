@@ -25,6 +25,48 @@ class AssignmentResource extends Resource
     protected static ?string $modelLabel = 'назначение на работы';
     protected static ?string $pluralModelLabel = 'Назначения на работы';
 
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+
+        // Исполнитель, contractor_executor, trainee видят только свои
+        if ($user->hasAnyRole(['executor', 'contractor_executor', 'trainee'])) {
+            return $query->where('user_id', $user->id);
+        }
+
+        // Диспетчер видит назначения на заявки и массовый персонал
+        if ($user->hasRole('dispatcher')) {
+            return $query->whereIn('assignment_type', ['work_request', 'mass_personnel', 'brigadier_schedule']);
+        }
+
+        // Инициатор видит плановые назначения бригадира
+        if ($user->hasRole('initiator')) {
+            return $query->where('assignment_type', 'brigadier_schedule');
+        }
+
+        // HR, contractor_admin не видят назначения вообще
+        if ($user->hasAnyRole(['hr', 'contractor_admin'])) {
+            return $query->where('id', 0); // Пустой результат
+        }
+
+        // Для admin, manager, viewer - без фильтрации
+        return $query;
+    }
+
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+        
+        // Исполнитель может видеть список (только свои)
+        if ($user->hasRole('executor')) {
+            return $user->can('view_assignment'); // У него есть это разрешение
+        }
+        
+        // Для остальных - проверяем view_any_assignment
+        return $user->can('view_any_assignment');
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -126,7 +168,21 @@ class AssignmentResource extends Resource
                         Forms\Components\DatePicker::make('planned_date')
                             ->label('Планируемая дата')
                             ->required()
-                            ->native(false),
+                            ->native(false)
+                            ->rules([
+                                function () {
+                                    return function (string $attribute, $value, Closure $fail) {
+                                        $user = auth()->user();
+                                        
+                                        // Для инициатора и диспетчера - только текущие и будущие даты
+                                        if ($user->hasAnyRole(['initiator', 'dispatcher'])) {
+                                            if (strtotime($value) < strtotime('today')) {
+                                                $fail('Вы не можете изменять назначения на прошедшие даты.');
+                                            }
+                                        }
+                                    };
+                                },
+                            ]),
 
                         Forms\Components\TimePicker::make('planned_start_time')
                             ->label('Время начала')

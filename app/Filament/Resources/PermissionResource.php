@@ -46,6 +46,46 @@ class PermissionResource extends Resource
                             ->placeholder('create_work_requests')
                             ->helperText('Используйте snake_case: create_work_requests'),
                         
+                        Forms\Components\Select::make('group')
+                            ->label('Группа/Модуль')
+                            ->options([
+                                'activity_log' => '📊 Логи активности',
+                                'address' => '📍 Адреса',
+                                'assignment' => '📋 Назначения',
+                                'candidate' => '👤 Кандидаты',
+                                'category' => '🗂️ Категории',
+                                'compensation' => '💰 Компенсации',
+                                'contractor' => '🏢 Подрядчики',
+                                'department' => '🏛️ Отделы',
+                                'employment_history' => '📝 История трудоустройства',
+                                'expense' => '🧾 Расходы',
+                                'hiring_decision' => '✅ Решения о найме',
+                                'initiator_grant' => '🔑 Права инициатора',
+                                'interview' => '🗣️ Собеседования',
+                                'mass_personnel_report' => '👥 Массовый персонал',
+                                'permission' => '🔐 Разрешения',
+                                'photo' => '📷 Фотографии',
+                                'position_change_request' => '🔄 Запросы на изменение должности',
+                                'project' => '📁 Проекты',
+                                'purpose' => '🎯 Назначения работ',
+                                'recruitment_request' => '🔍 Заявки на подбор',
+                                'role' => '👥 Роли',
+                                'shift' => '⏰ Смены',
+                                'specialty' => '🎓 Специальности',
+                                'tax_status' => '💰 Налоговые статусы',
+                                'trainee_request' => '👶 Заявки на стажировку',
+                                'user' => '👤 Пользователи',
+                                'vacancy' => '📋 Вакансии',
+                                'visited_location' => '📍 Посещенные локации',
+                                'work_request' => '📝 Заявки на работы',
+                                'work_type' => '🔧 Виды работ',
+                                'system' => '⚙️ Системные',
+                                'financial' => '💳 Финансы',
+                            ])
+                            ->searchable()
+                            ->required()
+                            ->default('system'),
+                        
                         Forms\Components\TextInput::make('guard_name')
                             ->default('web')
                             ->required()
@@ -68,22 +108,54 @@ class PermissionResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('group')
+                    ->label('Группа')
+                    ->badge()
+                    ->sortable()
+                    ->searchable()
+                    ->color(fn ($state) => match($state) {
+                        'work_request' => 'warning',
+                        'user' => 'primary',
+                        'financial' => 'success',
+                        'system' => 'danger',
+                        'project' => 'info',
+                        'hr' => 'purple',
+                        'shift' => 'orange',
+                        'contractor' => 'gray',
+                        default => 'gray',
+                    }),
+                
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable()
                     ->label('Разрешение')
-                    ->formatStateUsing(fn ($state) => 
-                        match($state) {
-                            'create_work_requests' => '📋 Создание заявок',
-                            'view_work_requests' => '👁️ Просмотр заявок',
-                            'edit_work_requests' => '✏️ Редактирование заявок',
-                            'delete_work_requests' => '🗑️ Удаление заявок',
-                            'manage_users' => '👥 Управление пользователями',
-                            'manage_roles' => '🔑 Управление ролями',
-                            'manage_permissions' => '🔐 Управление разрешениями',
-                            default => $state
+                    ->formatStateUsing(function ($state) {
+                        // Простое форматирование без сложной логики
+                        $parts = explode('_', $state);
+                        if (count($parts) >= 2) {
+                            $action = $parts[0];
+                            $model = implode('_', array_slice($parts, 1));
+                            
+                            $actionMap = [
+                                'view' => '👁️',
+                                'create' => '➕',
+                                'update' => '✏️',
+                                'delete' => '🗑️',
+                                'restore' => '♻️',
+                                'force' => '💥',
+                                'replicate' => '📋',
+                                'manage' => '⚙️',
+                                'approve' => '✅',
+                                'access' => '🚪',
+                                'export' => '📤',
+                                'import' => '📥',
+                            ];
+                            
+                            $actionIcon = $actionMap[$action] ?? '🔹';
+                            return "{$actionIcon} {$state}";
                         }
-                    ),
+                        return $state;
+                    }),
                     
                 Tables\Columns\TextColumn::make('description')
                     ->label('Описание')
@@ -98,8 +170,8 @@ class PermissionResource extends Resource
                     ->separator(', ')
                     ->limitList(3)
                     ->expandableLimitedList()
-                    ->formatStateUsing(fn ($state) => 
-                        match($state) {
+                    ->formatStateUsing(function ($state) {
+                        return match($state) {
                             'admin' => '👑 Админ',
                             'initiator' => '📋 Инициатор',
                             'dispatcher' => '📞 Диспетчер',
@@ -107,9 +179,10 @@ class PermissionResource extends Resource
                             'contractor' => '🏢 Подрядчик',
                             'hr' => '👔 HR',
                             'manager' => '💼 Менеджер',
+                            'trainee' => '👶 Стажер',
                             default => $state
-                        }
-                    )
+                        };
+                    })
                     ->colors([
                         'danger' => 'admin',
                         'success' => 'initiator',
@@ -118,6 +191,7 @@ class PermissionResource extends Resource
                         'gray' => 'contractor',
                         'purple' => 'hr',
                         'orange' => 'manager',
+                        'blue' => 'trainee',
                     ]),
                     
                 Tables\Columns\TextColumn::make('direct_users_count')
@@ -177,6 +251,28 @@ class PermissionResource extends Resource
                     ->label('Создано'),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('group')
+                    ->label('Группа')
+                    ->options([
+                        'work_request' => 'Заявки на работы',
+                        'user' => 'Пользователи',
+                        'project' => 'Проекты',
+                        'financial' => 'Финансы',
+                        'system' => 'Системные',
+                        'hr' => 'Кадры (HR)',
+                        'assignment' => 'Назначения',
+                        'contractor' => 'Подрядчики',
+                        'shift' => 'Смены',
+                        'address' => 'Адреса',
+                        'category' => 'Категории',
+                        'specialty' => 'Специальности',
+                    ])
+                    ->multiple(),
+                    
+                Tables\Filters\Filter::make('has_description')
+                    ->label('Только с описанием')
+                    ->query(fn ($query) => $query->whereNotNull('description')),
+                    
                 Tables\Filters\Filter::make('has_roles')
                     ->label('Только с ролями')
                     ->query(fn ($query) => $query->has('roles')),
@@ -211,15 +307,15 @@ class PermissionResource extends Resource
                 Tables\Actions\CreateAction::make()
                     ->label('Создать разрешение'),
             ])
-            ->defaultSort('name', 'asc');
+            ->defaultSort('group', 'asc');
     }
 
     public static function getRelations(): array
     {
         return [
             RelationManagers\RolesRelationManager::class,
-            RelationManagers\DirectUsersRelationManager::class,  // Прямые назначения
-            RelationManagers\UsersViaRolesRelationManager::class, // Через роли
+            RelationManagers\DirectUsersRelationManager::class,
+            RelationManagers\UsersViaRolesRelationManager::class,
         ];
     }
 

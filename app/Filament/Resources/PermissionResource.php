@@ -1,4 +1,5 @@
 <?php
+// app/Filament/Resources/PermissionResource.php - ОБНОВИ таблицу
 
 namespace App\Filament\Resources;
 
@@ -12,6 +13,9 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\DB;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\TernaryFilter;
 
 class PermissionResource extends Resource
 {
@@ -48,40 +52,15 @@ class PermissionResource extends Resource
                         
                         Forms\Components\Select::make('group')
                             ->label('Группа/Модуль')
-                            ->options([
-                                'activity_log' => '📊 Логи активности',
-                                'address' => '📍 Адреса',
-                                'assignment' => '📋 Назначения',
-                                'candidate' => '👤 Кандидаты',
-                                'category' => '🗂️ Категории',
-                                'compensation' => '💰 Компенсации',
-                                'contractor' => '🏢 Подрядчики',
-                                'department' => '🏛️ Отделы',
-                                'employment_history' => '📝 История трудоустройства',
-                                'expense' => '🧾 Расходы',
-                                'hiring_decision' => '✅ Решения о найме',
-                                'initiator_grant' => '🔑 Права инициатора',
-                                'interview' => '🗣️ Собеседования',
-                                'mass_personnel_report' => '👥 Массовый персонал',
-                                'permission' => '🔐 Разрешения',
-                                'photo' => '📷 Фотографии',
-                                'position_change_request' => '🔄 Запросы на изменение должности',
-                                'project' => '📁 Проекты',
-                                'purpose' => '🎯 Назначения работ',
-                                'recruitment_request' => '🔍 Заявки на подбор',
-                                'role' => '👥 Роли',
-                                'shift' => '⏰ Смены',
-                                'specialty' => '🎓 Специальности',
-                                'tax_status' => '💰 Налоговые статусы',
-                                'trainee_request' => '👶 Заявки на стажировку',
-                                'user' => '👤 Пользователи',
-                                'vacancy' => '📋 Вакансии',
-                                'visited_location' => '📍 Посещенные локации',
-                                'work_request' => '📝 Заявки на работы',
-                                'work_type' => '🔧 Виды работ',
-                                'system' => '⚙️ Системные',
-                                'financial' => '💳 Финансы',
-                            ])
+                            ->options(function () {
+                                return Permission::query()
+                                    ->select('group')
+                                    ->whereNotNull('group')
+                                    ->distinct()
+                                    ->orderBy('group')
+                                    ->pluck('group', 'group')
+                                    ->toArray();
+                            })
                             ->searchable()
                             ->required()
                             ->default('system'),
@@ -160,6 +139,7 @@ class PermissionResource extends Resource
                 Tables\Columns\TextColumn::make('description')
                     ->label('Описание')
                     ->limit(50)
+                    ->searchable()
                     ->tooltip(function ($state) {
                         return strlen($state) > 50 ? $state : null;
                     }),
@@ -244,6 +224,13 @@ class PermissionResource extends Resource
                     })
                     ->tooltip('Всего уникальных пользователей'),
                     
+                Tables\Columns\TextColumn::make('guard_name')
+                    ->label('Guard')
+                    ->badge()
+                    ->color(fn ($state) => $state === 'web' ? 'success' : 'warning')
+                    ->sortable()
+                    ->toggleable(),
+                    
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime('d.m.Y H:i')
                     ->sortable()
@@ -251,43 +238,119 @@ class PermissionResource extends Resource
                     ->label('Создано'),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('group')
+                // Фильтр по группе (динамический из БД)
+                SelectFilter::make('group')
                     ->label('Группа')
+                    ->options(function () {
+                        return Permission::query()
+                            ->select('group')
+                            ->whereNotNull('group')
+                            ->distinct()
+                            ->orderBy('group')
+                            ->pluck('group', 'group')
+                            ->toArray();
+                    })
+                    ->multiple()
+                    ->searchable(),
+                
+                // Фильтр по названию разрешения
+                Filter::make('name')
+                    ->label('Название разрешения')
+                    ->form([
+                        Forms\Components\TextInput::make('name')
+                            ->label('Содержит текст')
+                            ->placeholder('Например: view_any_'),
+                    ])
+                    ->query(function ($query, array $data) {
+                        return $query
+                            ->when(
+                                $data['name'] ?? null,
+                                fn ($query, $name) => $query->where('name', 'like', "%{$name}%")
+                            );
+                    }),
+                
+                // Фильтр по описанию
+                Filter::make('description')
+                    ->label('Описание')
+                    ->form([
+                        Forms\Components\TextInput::make('description')
+                            ->label('Содержит текст')
+                            ->placeholder('Например: Просмотр списка'),
+                    ])
+                    ->query(function ($query, array $data) {
+                        return $query
+                            ->when(
+                                $data['description'] ?? null,
+                                fn ($query, $description) => $query->where('description', 'like', "%{$description}%")
+                            );
+                    }),
+                
+                // Фильтр по наличию описания
+                TernaryFilter::make('has_description')
+                    ->label('Наличие описания')
+                    ->nullable()
+                    ->queries(
+                        true: fn ($query) => $query->whereNotNull('description'),
+                        false: fn ($query) => $query->whereNull('description'),
+                        blank: fn ($query) => $query,
+                    ),
+                
+                // Фильтр по ролям
+                SelectFilter::make('roles')
+                    ->label('Роли')
+                    ->relationship('roles', 'name')
+                    ->multiple()
+                    ->searchable(),
+                
+                // Фильтр по наличию ролей
+                TernaryFilter::make('has_roles')
+                    ->label('Назначено ролям')
+                    ->nullable()
+                    ->queries(
+                        true: fn ($query) => $query->whereHas('roles'),
+                        false: fn ($query) => $query->whereDoesntHave('roles'),
+                        blank: fn ($query) => $query,
+                    ),
+                
+                // Фильтр по guard_name
+                SelectFilter::make('guard_name')
+                    ->label('Guard')
                     ->options([
-                        'work_request' => 'Заявки на работы',
-                        'user' => 'Пользователи',
-                        'project' => 'Проекты',
-                        'financial' => 'Финансы',
-                        'system' => 'Системные',
-                        'hr' => 'Кадры (HR)',
-                        'assignment' => 'Назначения',
-                        'contractor' => 'Подрядчики',
-                        'shift' => 'Смены',
-                        'address' => 'Адреса',
-                        'category' => 'Категории',
-                        'specialty' => 'Специальности',
+                        'web' => 'Web',
+                        'api' => 'API',
                     ])
                     ->multiple(),
-                    
-                Tables\Filters\Filter::make('has_description')
-                    ->label('Только с описанием')
-                    ->query(fn ($query) => $query->whereNotNull('description')),
-                    
-                Tables\Filters\Filter::make('has_roles')
-                    ->label('Только с ролями')
-                    ->query(fn ($query) => $query->has('roles')),
-                    
-                Tables\Filters\Filter::make('has_direct_users')
-                    ->label('С прямыми пользователями')
-                    ->query(fn ($query) => 
-                        $query->whereHas('users')
+                
+                // Фильтр по прямым пользователям
+                TernaryFilter::make('has_direct_users')
+                    ->label('Есть прямые пользователи')
+                    ->nullable()
+                    ->queries(
+                        true: fn ($query) => $query->whereHas('users'),
+                        false: fn ($query) => $query->whereDoesntHave('users'),
+                        blank: fn ($query) => $query,
                     ),
-                    
-                Tables\Filters\Filter::make('has_users_via_roles')
-                    ->label('С пользователями через роли')
-                    ->query(fn ($query) => 
-                        $query->whereHas('roles.users')
-                    ),
+                
+                // Фильтр по дате создания
+                Filter::make('created_at')
+                    ->label('Дата создания')
+                    ->form([
+                        Forms\Components\DatePicker::make('created_from')
+                            ->label('От'),
+                        Forms\Components\DatePicker::make('created_until')
+                            ->label('До'),
+                    ])
+                    ->query(function ($query, array $data) {
+                        return $query
+                            ->when(
+                                $data['created_from'] ?? null,
+                                fn ($query, $date) => $query->whereDate('created_at', '>=', $date)
+                            )
+                            ->when(
+                                $data['created_until'] ?? null,
+                                fn ($query, $date) => $query->whereDate('created_at', '<=', $date)
+                            );
+                    }),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
@@ -307,7 +370,9 @@ class PermissionResource extends Resource
                 Tables\Actions\CreateAction::make()
                     ->label('Создать разрешение'),
             ])
-            ->defaultSort('group', 'asc');
+            ->defaultSort('group', 'asc')
+            ->deferFilters() // Для производительности
+            ->persistFiltersInSession(); // Сохраняем фильтры в сессии
     }
 
     public static function getRelations(): array

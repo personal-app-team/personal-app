@@ -1,4 +1,5 @@
 <?php
+// app/Filament/Resources/RoleResource.php - ОБНОВИ форму
 
 namespace App\Filament\Resources;
 
@@ -45,6 +46,12 @@ class RoleResource extends Resource
                             ->unique(ignoreRecord: true)
                             ->label('Название роли')
                             ->placeholder('Например: Администратор, Менеджер...'),
+                            
+                        Forms\Components\Textarea::make('description')
+                            ->label('Описание роли')
+                            ->nullable()
+                            ->maxLength(1000)
+                            ->helperText('Краткое описание назначения роли'),
                     ]),
                     
                 Forms\Components\Section::make('Разрешения')
@@ -58,16 +65,8 @@ class RoleResource extends Resource
                             ->gridDirection('row')
                             ->columns(2)
                             ->getOptionLabelFromRecordUsing(fn (Permission $record) => 
-                                match($record->name) {
-                                    'create_work_requests' => '📋 Создание заявок',
-                                    'view_work_requests' => '👁️ Просмотр заявок',
-                                    'edit_work_requests' => '✏️ Редактирование заявок',
-                                    'delete_work_requests' => '🗑️ Удаление заявок',
-                                    'manage_users' => '👥 Управление пользователями',
-                                    'manage_roles' => '🔑 Управление ролями',
-                                    'manage_permissions' => '🔐 Управление разрешениями',
-                                    default => $record->name
-                                }
+                                // Форматирование названия разрешения
+                                $record->description ?: $record->name
                             ),
                     ]),
             ]);
@@ -81,6 +80,15 @@ class RoleResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->label('Название роли'),
+                    
+                Tables\Columns\TextColumn::make('description')
+                    ->label('Описание')
+                    ->limit(50)
+                    ->searchable()
+                    ->toggleable()
+                    ->tooltip(function ($state) {
+                        return strlen($state) > 50 ? $state : null;
+                    }),
                     
                 Tables\Columns\TextColumn::make('permissions_count')
                     ->counts('permissions')
@@ -116,6 +124,10 @@ class RoleResource extends Resource
                 Tables\Filters\Filter::make('has_users')
                     ->label('Только с пользователями')
                     ->query(fn ($query) => $query->has('users')),
+                    
+                Tables\Filters\Filter::make('has_description')
+                    ->label('Только с описанием')
+                    ->query(fn ($query) => $query->whereNotNull('description')),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()

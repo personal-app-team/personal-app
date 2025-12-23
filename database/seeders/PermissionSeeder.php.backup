@@ -1,0 +1,209 @@
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Spatie\Permission\Models\Permission;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+class PermissionSeeder extends Seeder
+{
+    /**
+     * Группы разрешений для нормализации
+     * Приводим все к единому формату snake_case
+     */
+    private array $groupMapping = [
+        // Русские названия -> английские snake_case
+        'Activity' => 'activity',
+        'Address' => 'address',
+        'Assignment' => 'assignment',
+        'Candidate' => 'candidate',
+        'Category' => 'category',
+        'Compensation' => 'compensation',
+        'Contractor' => 'contractor',
+        'ContractType' => 'contract_type',
+        'Department' => 'department',
+        'EmploymentHistory' => 'employment_history',
+        'Expense' => 'expense',
+        'filament' => 'system', // объединяем с system
+        'HiringDecision' => 'hiring_decision',
+        'InitiatorGrant' => 'initiator_grant',
+        'Interview' => 'interview',
+        'MassPersonnelReport' => 'mass_personnel_report',
+        'panel' => 'system', // объединяем с system
+        'Permission' => 'permission',
+        'Photo' => 'photo',
+        'PositionChangeRequest' => 'position_change_request',
+        'Project' => 'project',
+        'Purpose' => 'purpose',
+        'RecruitmentRequest' => 'recruitment_request',
+        'reports' => 'report',
+        'Role' => 'role',
+        'settings' => 'system',
+        'Shift' => 'shift',
+        'Specialty' => 'specialty',
+        'statistics' => 'report',
+        'TaxStatus' => 'tax_status',
+        'TraineeRequest' => 'trainee_request',
+        'User' => 'user',
+        'Vacancy' => 'vacancy',
+        'VisitedLocation' => 'visited_location',
+        'WorkRequest' => 'work_request',
+        'WorkType' => 'work_type',
+        'database' => 'system',
+        'data' => 'system',
+        'payments' => 'financial',
+        'hiringdecision' => 'hiring_decision',
+        
+        // Дополнительные группы из Excel
+        'AddressProject' => 'address',
+        'AddressTemplate' => 'address',
+        'CandidateDecision' => 'candidate',
+        'CandidateStatusHistory' => 'candidate',
+        'ContractorRate' => 'contractor',
+        'ContractorWorker' => 'contractor',
+        'PurposeAddressRule' => 'purpose',
+        'PurposePayerCompany' => 'purpose',
+        'PurposeTemplate' => 'purpose',
+        'VacancyCondition' => 'vacancy',
+        'VacancyRequirement' => 'vacancy',
+        'VacancyTask' => 'vacancy',
+        'WorkRequestStatus' => 'work_request',
+    ];
+    
+    /**
+     * Вставьте сюда сгенерированный массив из generated_permissions.php
+     */
+    private array $excelPermissions = [
+        // Сюда будет вставлен сгенерированный массив
+    ];
+
+    public function run(): void
+    {
+        $this->command->info('🚀 Запуск PermissionSeeder...');
+        
+        // Проверяем структуру таблицы permissions
+        if (!Schema::hasColumn('permissions', 'group')) {
+            $this->command->error('❌ В таблице permissions отсутствует колонка "group"');
+            $this->command->info('Запустите миграцию: sail artisan migrate');
+            return;
+        }
+        
+        // Очищаем кэш разрешений
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        
+        DB::transaction(function () {
+            $stats = [
+                'updated' => 0,
+                'created' => 0,
+                'skipped' => 0,
+            ];
+            
+            // Если массив пустой, показываем предупреждение
+            if (empty($this->excelPermissions)) {
+                $this->command->warn('⚠️  Массив excelPermissions пустой!');
+                $this->command->info('Запустите скрипт convert_excel_to_php.php для генерации массива');
+                return;
+            }
+            
+            $this->command->info("📊 Загружено " . count($this->excelPermissions) . " разрешений из Excel");
+            
+            // Обновляем существующие разрешения и создаем недостающие
+            foreach ($this->excelPermissions as $name => $excelData) {
+                $normalizedGroup = $this->normalizeGroup($excelData['group']);
+                
+                // Ищем существующее разрешение
+                $permission = Permission::where('name', $name)->first();
+                
+                if ($permission) {
+                    // Проверяем, нужно ли обновить
+                    $needsUpdate = false;
+                    
+                    if ($permission->group !== $normalizedGroup) {
+                        $permission->group = $normalizedGroup;
+                        $needsUpdate = true;
+                    }
+                    
+                    if ($permission->description !== $excelData['description']) {
+                        $permission->description = $excelData['description'];
+                        $needsUpdate = true;
+                    }
+                    
+                    if ($needsUpdate) {
+                        $permission->save();
+                        $stats['updated']++;
+                    } else {
+                        $stats['skipped']++;
+                    }
+                } else {
+                    // Создаем новое разрешение
+                    Permission::create([
+                        'name' => $name,
+                        'group' => $normalizedGroup,
+                        'description' => $excelData['description'],
+                        'guard_name' => 'web',
+                    ]);
+                    $stats['created']++;
+                }
+            }
+            
+            // Статистика по группам
+            $groupStats = Permission::select('group', DB::raw('count(*) as count'))
+                ->whereNotNull('group')
+                ->groupBy('group')
+                ->orderBy('count', 'desc')
+                ->pluck('count', 'group')
+                ->toArray();
+            
+            $this->command->info("📊 Результат:");
+            $this->command->info("  ✅ Создано: {$stats['created']}");
+            $this->command->info("  🔄 Обновлено: {$stats['updated']}");
+            $this->command->info("  ⏭️  Пропущено: {$stats['skipped']}");
+            $this->command->info("  📈 Всего в базе: " . Permission::count());
+            
+            if (!empty($groupStats)) {
+                $this->command->info("\n📊 Группы разрешений:");
+                foreach ($groupStats as $group => $count) {
+                    $this->command->info("  - {$group}: {$count}");
+                }
+            }
+        });
+        
+        $this->command->info('✅ PermissionSeeder завершен!');
+    }
+    
+    /**
+     * Нормализуем название группы
+     */
+    private function normalizeGroup(string $group): string
+    {
+        $group = trim($group);
+        
+        // Если группа есть в маппинге, используем нормализованное значение
+        if (isset($this->groupMapping[$group])) {
+            return $this->groupMapping[$group];
+        }
+        
+        // Приводим к snake_case
+        $normalized = strtolower(preg_replace('/[^a-zA-Z0-9]+/', '_', $group));
+        $normalized = trim($normalized, '_');
+        
+        return $normalized;
+    }
+    
+    /**
+     * Метод для получения статистики (можно использовать для отладки)
+     */
+    public function getGroupStatistics(): array
+    {
+        $groups = [];
+        foreach ($this->excelPermissions as $data) {
+            $originalGroup = $data['group'];
+            $normalizedGroup = $this->normalizeGroup($originalGroup);
+            $groups[$originalGroup] = $normalizedGroup;
+        }
+        
+        return array_unique($groups);
+    }
+}

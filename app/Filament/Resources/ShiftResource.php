@@ -11,6 +11,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class ShiftResource extends Resource
 {
@@ -459,5 +460,16 @@ class ShiftResource extends Resource
             'create' => Pages\CreateShift::route('/create'),
             'edit' => Pages\EditShift::route('/{record}/edit'),
         ];
+    }
+
+    public static function canAccess(): bool
+    {
+        $user = Auth::user();
+        
+        if ($user->hasAnyRole(['executor', 'contractor_executor', 'trainee'])) {
+            return $user->can('view_any_shift') || $user->can('view_shift');
+        }
+        
+        return true;
     }
 }

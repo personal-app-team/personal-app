@@ -13,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class AssignmentResource extends Resource
 {
@@ -473,5 +474,16 @@ class AssignmentResource extends Resource
             'create' => Pages\CreateAssignment::route('/create'),
             'edit' => Pages\EditAssignment::route('/{record}/edit'),
         ];
+    }
+
+    public static function canAccess(): bool
+    {
+        $user = Auth::user();
+        
+        if ($user->hasAnyRole(['executor', 'contractor_executor', 'trainee'])) {
+            return $user->can('view_any_assignment') || $user->can('view_assignment');
+        }
+        
+        return true;
     }
 }

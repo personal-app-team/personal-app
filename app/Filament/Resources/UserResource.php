@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+// use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
 use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers;
 use App\Models\User;
@@ -337,8 +338,25 @@ class UserResource extends Resource
         ];
     }
     
-    public static function canAccess(): bool
-    {
-        return auth()->user()->hasAnyRole(['admin', 'initiator', 'dispatcher']);
-    }
+    // public static function getPermissionPrefixes(): array
+    // {
+    //     return [
+    //         'view_any',
+    //         'view',
+    //         'create', 
+    //         'update',
+    //         'delete',
+    //         'delete_any',
+    //         'restore',
+    //         'restore_any',
+    //         'force_delete',
+    //         'force_delete_any',
+    //         'manage_contractor',
+    //         'view_own_company',
+    //         'replicate',
+    //         // Добавьте специфичные для User, если есть:
+    //         // 'change_password',
+    //         // 'impersonate',
+    //     ];
+    // }
 }

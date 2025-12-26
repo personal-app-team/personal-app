@@ -245,20 +245,6 @@ class UserSeeder extends Seeder
             $user->assignRole('trainee');
         }
         
-        // 10. Наблюдатели (1 пользователь)
-        $this->command->info('👁️ Создание наблюдателя...');
-        $viewer = User::create([
-            'name' => 'Наблюдатель',
-            'surname' => 'Наблюдателев',
-            'patronymic' => 'Наблюдателевич',
-            'email' => 'viewer@example.com',
-            'password' => Hash::make('password123'),
-            'phone' => '+7999118001',
-            'user_type' => 'employee',
-            'email_verified_at' => now(),
-        ]);
-        $viewer->assignRole('viewer');
-        
         $this->command->info('🎉 Все тестовые пользователи созданы!');
         $this->command->info('📊 Статистика:');
         $this->command->info('  • Подрядчики: 4');
@@ -271,6 +257,5 @@ class UserSeeder extends Seeder
         $this->command->info('  • HR: 3');
         $this->command->info('  • Менеджеры: 3');
         $this->command->info('  • Стажеры: 2');
-        $this->command->info('  • Наблюдатель: 1');
     }
 }

@@ -22,10 +22,10 @@ return new class extends Migration
                     ->comment('Подрядчик (если personnel_type = contractor)');
             }
 
-            // 2. personnel_type - добавляем только если нет
+            // 2. personnel_type - добавляем только если нет (делаем NOT NULL с default)
             if (!Schema::hasColumn('work_requests', 'personnel_type')) {
                 $table->enum('personnel_type', ['our_staff', 'contractor'])
-                    ->nullable()
+                    ->default('our_staff')  // ← ДОБАВЛЯЕМ default
                     ->after('contractor_id')
                     ->comment('Тип персонала: наши сотрудники или подрядчик');
             }
@@ -83,12 +83,12 @@ return new class extends Migration
     public function down(): void
     {
         Schema::disableForeignKeyConstraints();
-        
+
         Schema::table('work_requests', function (Blueprint $table) {
             // Удаляем только те колонки, которые мы добавили
             $columnsToDrop = [
                 'deleted_at',
-                'desired_workers', 
+                'desired_workers',
                 'external_number',
                 'request_number',
                 'custom_address',
@@ -96,19 +96,19 @@ return new class extends Migration
                 'personnel_type',
                 'contractor_id'
             ];
-            
+
             foreach ($columnsToDrop as $column) {
                 if (Schema::hasColumn('work_requests', $column)) {
                     // Если это внешний ключ, сначала удаляем ограничение
                     if ($column === 'contractor_id') {
                         $table->dropForeign(['contractor_id']);
                     }
-                    
+
                     $table->dropColumn($column);
                 }
             }
         });
-        
+
         Schema::enableForeignKeyConstraints();
     }
 };

@@ -22,6 +22,22 @@ use Illuminate\Database\Eloquent\Builder;
 
 class WorkRequestResource extends Resource
 {
+
+    public static function canAccess(): bool
+    {
+        $user = Auth::user();
+        
+        if (!$user) {
+            return false;
+        }
+        
+        if ($user->hasAnyRole(['executor', 'contractor_executor', 'trainee'])) {
+            return $user->can('view_any_workrequest') || $user->can('view_workrequest');
+        }
+        
+        return true;
+    }
+    
     protected static ?string $model = WorkRequest::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';

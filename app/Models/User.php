@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+// use BezhanSalleh\FilamentShield\Traits\HasPanelShield;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -545,4 +547,10 @@ class User extends Authenticatable
             'is_active' => $this->hasRole('executor') || $this->hasRole('dispatcher') || $this->hasRole('initiator'),
         ]);
     }
+
+    // public function canAccessPanel(Panel $panel): bool
+    // {
+    //     // Простая проверка: есть ли хотя бы одна роль
+    //     return $this->roles()->exists();
+    // }
 }

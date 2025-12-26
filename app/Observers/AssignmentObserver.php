@@ -27,19 +27,67 @@ class AssignmentObserver
             $this->createShiftFromConfirmedAssignment($assignment);
         }
         
+        // Если это массовое назначение, статус изменился на "confirmed" и отчет еще не создан
+        // Добавляем проверку на isMassPersonnel() (нужно добавить этот метод в модель)
+        if ($assignment->assignment_type === 'mass_personnel' && 
+            $assignment->isDirty('status') && 
+            $assignment->isConfirmed() && 
+            !$assignment->massPersonnelReport()->exists()) {
+            $this->createMassPersonnelReport($assignment);
+        }
+        
+        // Отправляем уведомление исполнителю при создании назначения
+        // Проверяем, что статус изменился с null на 'pending'
+        if ($assignment->isDirty('status') && 
+            $assignment->getOriginal('status') === null && 
+            $assignment->status === 'pending' && 
+            $assignment->user_id) {
+            $this->sendAssignmentNotification($assignment);
+        }
+        
         // Логируем изменение статуса в файл активности
         if ($assignment->isDirty('status')) {
-            $oldStatus = $assignment->getOriginal('status');
-            $newStatus = $assignment->status;
-            
-            Log::channel('activity')->info("Изменен статус назначения", [
-                'assignment_id' => $assignment->id,
-                'from' => $oldStatus,
-                'to' => $newStatus,
-                'user_id' => $assignment->user_id,
-                'assignment_number' => $assignment->assignment_number,
-            ]);
+            $this->logStatusChange($assignment);
         }
+    }
+
+    private function createMassPersonnelReport(Assignment $assignment): void
+    {
+        $report = MassPersonnelReport::create([
+            'request_id' => $assignment->work_request_id,
+            'workers_count' => 0,
+            'total_hours' => 0,
+            'status' => 'draft',
+            'contractor_id' => $assignment->workRequest->contractor_id,
+        ]);
+
+        // Связываем отчет с назначением (нужно добавить связь в модели)
+        $assignment->mass_personnel_report_id = $report->id;
+        $assignment->save();
+    }
+
+    private function sendAssignmentNotification(Assignment $assignment): void
+    {
+        $user = $assignment->user;
+        
+        // Здесь можно интегрировать с любой системой уведомлений
+        // Например, через Laravel Notifications или WebSocket
+        \Log::info('Уведомление для исполнителя', [
+            'user_id' => $user->id,
+            'assignment_id' => $assignment->id,
+            'type' => $assignment->assignment_type,
+            'planned_date' => $assignment->planned_date,
+        ]);
+        
+        // Для тестирования можно создать запись в базе
+        \App\Models\Notification::create([
+            'user_id' => $user->id,
+            'type' => 'assignment_created',
+            'title' => 'Новое назначение',
+            'message' => 'Вам назначена ' . ($assignment->isBrigadierSchedule() ? 'роль бригадира' : 'работа по заявке'),
+            'data' => ['assignment_id' => $assignment->id],
+            'read_at' => null,
+        ]);
     }
     
     /**

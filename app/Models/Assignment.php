@@ -180,6 +180,11 @@ class Assignment extends Model
 
     // === МЕТОДЫ ===
 
+    public function isMassPersonnel()
+    {
+        return $this->assignment_type === 'mass_personnel';
+    }
+
     /**
      * Подтвердить назначение
      */

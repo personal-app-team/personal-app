@@ -1,44 +1,88 @@
 <?php
-// database/seeders/DatabaseSeeder.php
+
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->command->info('🚀 Начало заполнения базы данных...');
+        $this->command->info('🚀 Начало актуализации базы данных...');
+
+        // Очищаем кэш перед началом
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
         
-        // 1. Справочники (оставляем существующие)
+        // Удаляем старые политики из неправильной папки
+        $this->cleanupOldPolicies();
+
+        // 1. Справочники
         $this->call(ContractTypeTaxStatusSeeder::class);
-        $this->command->info('✅ Справочники договоров и налогов созданы');
-        
+        $this->command->info('✅ Справочники договоров и налогов актуализированы');
+
         // 2. Категории и специальности
         $this->call(CategorySpecialtySeeder::class);
-        $this->command->info('✅ Категории и специальности созданы');
-        
+        $this->command->info('✅ Категории и специальности актуализированы');
+
         // 3. Виды работ
         $this->call(WorkTypeSeeder::class);
-        $this->command->info('✅ Виды работ созданы');
-        
-        // 4. Роли (адаптированный сидер)
+        $this->command->info('✅ Виды работ актуализированы');
+
+        // 4. Создаем базовые роли (БЕЗ разрешений)
         $this->call(RoleSeeder::class);
-        $this->command->info('✅ Роли созданы (админ - супер-админ Shield)');
-        
-        // 5. Разрешения (теперь генерирует Shield, сидер только информирует)
+        $this->command->info('✅ Базовые роли созданы');
+
+        // 5. Актуализируем разрешения и восстанавливаем состояния ролей
         $this->call(PermissionSeeder::class);
-        $this->command->info('✅ Информация о разрешениях');
-        
-        // 6. Администратор системы (сразу получает роль admin)
+        $this->command->info('✅ Разрешения сгенерированы и назначения восстановлены');
+
+        // 6. Администратор системы
         $this->call(AdminSeeder::class);
-        $this->command->info('✅ Администратор системы создан');
-        
-        // 7. Тестовые пользователи с ролями (ВАЖНО: после создания ролей!)
+        $this->command->info('✅ Администратор системы актуализирован');
+
+        // 7. Тестовые пользователи с ролями
         $this->call(UserSeeder::class);
-        $this->command->info('✅ Тестовые пользователи созданы');
+        $this->command->info('✅ Тестовые пользователи актуализированы');
+
+        // Финальная очистка кэша
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        $this->command->info("\n🎉 База данных успешно актуализирована!");
+        $this->command->info('🔐 Система использует Filament Shield для управления правами');
+        $this->command->info('📁 Политики созданы в: app/Policies/');
+    }
+    
+    private function cleanupOldPolicies(): void
+    {
+        $incorrectPath = base_path('app/var');
+        if (file_exists($incorrectPath)) {
+            // Удаляем рекурсивно
+            $this->deleteDirectory($incorrectPath);
+            $this->command->info('🗑️  Удалены старые политики из неправильной папки');
+        }
+    }
+    
+    private function deleteDirectory($path): bool
+    {
+        if (!file_exists($path)) {
+            return true;
+        }
         
-        $this->command->info('🎉 База данных успешно заполнена!');
-        $this->command->info('🔐 Для настройки прав доступа используйте панель Shield');
+        if (!is_dir($path)) {
+            return unlink($path);
+        }
+        
+        foreach (scandir($path) as $item) {
+            if ($item == '.' || $item == '..') {
+                continue;
+            }
+            
+            if (!$this->deleteDirectory($path . DIRECTORY_SEPARATOR . $item)) {
+                return false;
+            }
+        }
+        
+        return rmdir($path);
     }
 }

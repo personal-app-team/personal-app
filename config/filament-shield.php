@@ -47,18 +47,12 @@ return [
         'custom_permissions' => false,
     ],
     'generator' => [
-        'option' => 'permissions', // ИЗМЕНЕНО: только разрешения, без политик
-        'policy_directory' => 'Policies',
+        'option' => 'policies_and_permissions',
+        // Абсолютный путь для Docker/WSL окружения
+        'policy_directory' => base_path('app/Policies'),
+        // Правильный namespace
         'policy_namespace' => 'App\\Policies',
-        'except' => [
-            'AssignmentResource',
-            'ShiftResource',
-            'WorkRequestResource',
-            'UserResource',
-            'ExpenseResource',
-            'CompensationResource',
-            'TraineeRequestResource',
-        ],
+        'except' => [],
     ],
     'exclude' => [
         'enabled' => true,
@@ -69,7 +63,7 @@ return [
         'resources' => [],
     ],
     'register_role_policy' => [
-        'enabled' => false, // ИЗМЕНЕНО: отключаем регистрацию политик ролей
+        'enabled' => false,
     ],
     'teams' => [
         'enabled' => false,

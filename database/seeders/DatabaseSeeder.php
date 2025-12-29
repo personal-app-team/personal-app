@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 
 class DatabaseSeeder extends Seeder
 {
@@ -14,7 +14,7 @@ class DatabaseSeeder extends Seeder
         // Очищаем кэш перед началом
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
         
-        // Удаляем старые политики из неправильной папки
+        // Удаляем старые политики из неправильной папки (если есть)
         $this->cleanupOldPolicies();
 
         // 1. Справочники
@@ -33,9 +33,9 @@ class DatabaseSeeder extends Seeder
         $this->call(RoleSeeder::class);
         $this->command->info('✅ Базовые роли созданы');
 
-        // 5. Актуализируем разрешения и восстанавливаем состояния ролей
+        // 5. Актуализируем разрешения и политики
         $this->call(PermissionSeeder::class);
-        $this->command->info('✅ Разрешения сгенерированы и назначения восстановлены');
+        $this->command->info('✅ Разрешения и политики актуализированы');
 
         // 6. Администратор системы
         $this->call(AdminSeeder::class);
@@ -49,17 +49,31 @@ class DatabaseSeeder extends Seeder
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
         $this->command->info("\n🎉 База данных успешно актуализирована!");
-        $this->command->info('🔐 Система использует Filament Shield для управления правами');
-        $this->command->info('📁 Политики созданы в: app/Policies/');
+        $this->command->info('🔐 Политики сохранены в правильной папке: app/Policies/');
     }
     
     private function cleanupOldPolicies(): void
     {
         $incorrectPath = base_path('app/var');
+        
         if (file_exists($incorrectPath)) {
-            // Удаляем рекурсивно
-            $this->deleteDirectory($incorrectPath);
-            $this->command->info('🗑️  Удалены старые политики из неправильной папки');
+            $this->command->info('🗑️  Удаляем старые политики из неправильной папки...');
+            
+            try {
+                // Для WSL/Docker используем system call
+                exec('rm -rf ' . escapeshellarg($incorrectPath) . ' 2>/dev/null', $output, $returnCode);
+                
+                if ($returnCode === 0) {
+                    $this->command->info('✅ Папка удалена: ' . $incorrectPath);
+                } else {
+                    // Альтернативный способ через File facade
+                    File::deleteDirectory($incorrectPath);
+                    $this->command->info('✅ Папка удалена через File facade');
+                }
+            } catch (\Exception $e) {
+                $this->command->warn('⚠️  Не удалось удалить папку автоматически. Удалите вручную:');
+                $this->command->line('   rm -rf app/var');
+            }
         }
     }
     

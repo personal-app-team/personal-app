@@ -1,3 +1,0 @@
-Resource,Role,Custom Permissions (через запятую)
-# Пример: AssignmentResource,executor,view_own_assignment,confirm_assignment
-# Пример: WorkRequestResource,dispatcher,publish_workrequest,take_workrequest

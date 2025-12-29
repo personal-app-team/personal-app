@@ -30,13 +30,12 @@ class GenerateShieldPolicies extends Command
         $incorrectPath = base_path('app/var/www/html/app/Policies');
         $correctPath = base_path('app/Policies');
 
-        // Проверяем, есть ли политики в неправильной папке
         if (!File::exists($incorrectPath)) {
-            $this->warn('⚠️  Политики не найдены в неправильной папке. Возможно, они уже в правильной.');
+            $this->warn('⚠️  Политики не найдены в неправильной папке.');
             return;
         }
 
-        // Копируем файлы в правильную папку
+        // Создаем правильную папку
         if (!File::exists($correctPath)) {
             File::makeDirectory($correctPath, 0755, true);
         }
@@ -48,25 +47,48 @@ class GenerateShieldPolicies extends Command
             $sourcePath = $file->getPathname();
             $destinationPath = $correctPath . '/' . $filename;
             
-            // Читаем содержимое файла
             $content = File::get($sourcePath);
-            
-            // Исправляем namespace (убираем лишний App\)
             $content = str_replace(
                 ['namespace App\\App\\Policies;', 'namespace App\App\Policies;'],
                 'namespace App\\Policies;',
                 $content
             );
             
-            // Записываем исправленный файл в правильную папку
             File::put($destinationPath, $content);
-            
             $this->line("✅ Исправлен: {$filename}");
         }
 
-        // Удаляем неправильную папку
-        File::deleteDirectory($incorrectPath);
+        // 🔧 УДАЛЯЕМ РЕКУРСИВНО ЧЕРЕЗ system call (для WSL/Docker)
+        $this->deleteRecursive(base_path('app/var'));
         
         $this->info("📁 Политики перемещены в: {$correctPath}");
+    }
+
+    private function deleteRecursive(string $path): void
+    {
+        if (!file_exists($path)) {
+            return;
+        }
+        
+        // Пробуем через File facade
+        try {
+            if (File::deleteDirectory($path)) {
+                $this->info("🗑️  Удалено через File::deleteDirectory: {$path}");
+                return;
+            }
+        } catch (\Exception $e) {
+            $this->warn("File::deleteDirectory не сработал: " . $e->getMessage());
+        }
+        
+        // Пробуем через system call (работает в WSL)
+        $command = 'rm -rf "' . str_replace('"', '\"', $path) . '" 2>/dev/null';
+        exec($command, $output, $returnCode);
+        
+        if ($returnCode === 0) {
+            $this->info("🗑️  Удалено через system call: {$path}");
+        } else {
+            $this->error("❌ Не удалось удалить {$path}");
+            $this->line("   Удалите вручную: rm -rf app/var");
+        }
     }
 }

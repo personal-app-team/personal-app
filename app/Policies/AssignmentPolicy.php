@@ -23,7 +23,22 @@ class AssignmentPolicy
      */
     public function view(User $user, Assignment $assignment): bool
     {
-        return $user->can('view_assignment');
+        // Проверяем базовое разрешение
+        if (!$user->can('view_assignment')) {
+            return false;
+        }
+        
+        // Инициатор может видеть только плановые назначения бригадира
+        if ($user->hasRole('initiator')) {
+            return $assignment->assignment_type === 'brigadier_schedule';
+        }
+        
+        // Исполнитель может видеть только свои назначения
+        if ($user->hasRole('executor')) {
+            return $assignment->user_id === $user->id;
+        }
+        
+        return true;
     }
 
     /**
@@ -31,7 +46,17 @@ class AssignmentPolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('create_assignment');
+        // Проверяем базовое разрешение
+        if (!$user->can('create_assignment')) {
+            return false;
+        }
+        
+        // Инициатор может создавать только плановые назначения бригадира
+        if ($user->hasRole('initiator')) {
+            return true; // Фильтрация по типу будет в форме
+        }
+        
+        return true;
     }
 
     /**
@@ -39,7 +64,26 @@ class AssignmentPolicy
      */
     public function update(User $user, Assignment $assignment): bool
     {
-        return $user->can('update_assignment');
+        // Проверяем базовое разрешение
+        if (!$user->can('update_assignment')) {
+            return false;
+        }
+        
+        // Инициатор может редактировать только:
+        // 1. Плановые назначения бригадира
+        // 2. Только свои назначения (где он создатель или связан через workRequest?)
+        // 3. Только в статусе pending
+        if ($user->hasRole('initiator')) {
+            return $assignment->assignment_type === 'brigadier_schedule' &&
+                   $assignment->status === 'pending';
+        }
+        
+        // Исполнитель может обновлять только свои назначения
+        if ($user->hasRole('executor')) {
+            return $assignment->user_id === $user->id;
+        }
+        
+        return true;
     }
 
     /**
@@ -47,7 +91,22 @@ class AssignmentPolicy
      */
     public function delete(User $user, Assignment $assignment): bool
     {
-        return $user->can('delete_assignment');
+        // Проверяем базовое разрешение
+        if (!$user->can('delete_assignment')) {
+            return false;
+        }
+        
+        // Инициатор НЕ может удалять назначения
+        if ($user->hasRole('initiator')) {
+            return false;
+        }
+        
+        // Исполнитель НЕ может удалять назначения
+        if ($user->hasRole('executor')) {
+            return false;
+        }
+        
+        return true;
     }
 
     /**
@@ -55,6 +114,11 @@ class AssignmentPolicy
      */
     public function deleteAny(User $user): bool
     {
+        // Инициатор и исполнитель не могут массово удалять
+        if ($user->hasAnyRole(['initiator', 'executor'])) {
+            return false;
+        }
+        
         return $user->can('delete_any_assignment');
     }
 
@@ -63,7 +127,8 @@ class AssignmentPolicy
      */
     public function forceDelete(User $user, Assignment $assignment): bool
     {
-        return $user->can('force_delete_assignment');
+        // Только администраторы могут окончательно удалять
+        return $user->hasRole('admin');
     }
 
     /**
@@ -71,7 +136,8 @@ class AssignmentPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_assignment');
+        // Только администраторы могут массово окончательно удалять
+        return $user->hasRole('admin');
     }
 
     /**
@@ -79,7 +145,8 @@ class AssignmentPolicy
      */
     public function restore(User $user, Assignment $assignment): bool
     {
-        return $user->can('restore_assignment');
+        // Только администраторы и диспетчеры могут восстанавливать
+        return $user->hasAnyRole(['admin', 'dispatcher']);
     }
 
     /**
@@ -87,7 +154,8 @@ class AssignmentPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_assignment');
+        // Только администраторы и диспетчеры могут массово восстанавливать
+        return $user->hasAnyRole(['admin', 'dispatcher']);
     }
 
     /**
@@ -95,6 +163,11 @@ class AssignmentPolicy
      */
     public function replicate(User $user, Assignment $assignment): bool
     {
+        // Инициатор и исполнитель не могут копировать
+        if ($user->hasAnyRole(['initiator', 'executor'])) {
+            return false;
+        }
+        
         return $user->can('replicate_assignment');
     }
 
@@ -103,6 +176,41 @@ class AssignmentPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_assignment');
+        // Только администраторы могут менять порядок
+        return $user->hasRole('admin');
+    }
+
+    /**
+     * Determine whether the user can confirm the assignment.
+     */
+    public function confirm(User $user, Assignment $assignment): bool
+    {
+        // Инициатор не может подтверждать назначения
+        if ($user->hasRole('initiator')) {
+            return false;
+        }
+        
+        // Исполнитель может подтверждать только свои назначения
+        if ($user->hasRole('executor')) {
+            return $assignment->user_id === $user->id &&
+                   $assignment->status === 'pending';
+        }
+        
+        // Диспетчер может подтверждать любые назначения
+        if ($user->hasRole('dispatcher')) {
+            return $assignment->status === 'pending';
+        }
+        
+        // Администратор может подтверждать любые назначения
+        return $user->hasRole('admin');
+    }
+    
+    /**
+     * Determine whether the user can reject the assignment.
+     */
+    public function reject(User $user, Assignment $assignment): bool
+    {
+        // Та же логика, что и для confirm
+        return $this->confirm($user, $assignment);
     }
 }

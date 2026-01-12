@@ -14,6 +14,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use App\Rules\FutureOrTodayDate;
 
 class AssignmentResource extends Resource
 {
@@ -36,14 +37,14 @@ class AssignmentResource extends Resource
             return $query->where('user_id', $user->id);
         }
 
-        // Диспетчер видит назначения на заявки и массовый персонал
-        if ($user->hasRole('dispatcher')) {
-            return $query->whereIn('assignment_type', ['work_request', 'mass_personnel', 'brigadier_schedule']);
-        }
-
         // Инициатор видит плановые назначения бригадира
         if ($user->hasRole('initiator')) {
             return $query->where('assignment_type', 'brigadier_schedule');
+        }
+
+        // Диспетчер видит все типы назначений
+        if ($user->hasRole('dispatcher')) {
+            return $query->whereIn('assignment_type', ['work_request', 'mass_personnel', 'brigadier_schedule']);
         }
 
         // HR, contractor_admin не видят назначения вообще
@@ -51,7 +52,7 @@ class AssignmentResource extends Resource
             return $query->where('id', 0); // Пустой результат
         }
 
-        // Для admin, manager, viewer - без фильтрации
+        // Для admin, manager - без фильтрации
         return $query;
     }
 
@@ -59,28 +60,46 @@ class AssignmentResource extends Resource
     {
         $user = auth()->user();
         
-        // Исполнитель может видеть список (только свои)
-        if ($user->hasRole('executor')) {
-            return $user->can('view_assignment'); // У него есть это разрешение
+        // Проверяем базовое разрешение
+        if (!$user->can('view_any_assignment')) {
+            return false;
         }
         
-        // Для остальных - проверяем view_any_assignment
-        return $user->can('view_any_assignment');
+        // Инициатор, диспетчер, admin, manager могут видеть
+        return $user->hasAnyRole(['initiator', 'dispatcher', 'admin', 'manager']);
     }
 
     public static function form(Form $form): Form
     {
+        $user = auth()->user();
+        $isInitiator = $user->hasRole('initiator');
+        $isDispatcher = $user->hasRole('dispatcher');
+        $isAdmin = $user->hasRole('admin');
+        
         return $form
             ->schema([
                 Forms\Components\Section::make('Тип назначения')
                     ->schema([
+                        // Поле assignment_type с разными вариантами для разных ролей
                         Forms\Components\Select::make('assignment_type')
                             ->label('Тип назначения')
-                            ->options([
-                                'brigadier_schedule' => 'Плановое назначение бригадира',
-                                'work_request' => 'Назначение на заявку',
-                                'mass_personnel' => 'Массовый персонал',
-                            ])
+                            ->options(function () use ($isInitiator, $isDispatcher, $isAdmin) {
+                                if ($isInitiator) {
+                                    // Инициатор может создавать только плановые назначения бригадира
+                                    return [
+                                        'brigadier_schedule' => 'Плановое назначение бригадира',
+                                    ];
+                                } elseif ($isDispatcher || $isAdmin) {
+                                    // Диспетчер и админ могут создавать все типы
+                                    return [
+                                        'brigadier_schedule' => 'Плановое назначение бригадира',
+                                        'work_request' => 'Назначение на заявку',
+                                        'mass_personnel' => 'Массовый персонал',
+                                    ];
+                                }
+                                // Для остальных ролей - пустой массив (они не должны создавать назначения)
+                                return [];
+                            })
                             ->required()
                             ->live()
                             ->afterStateUpdated(function ($set, $state) {
@@ -91,7 +110,14 @@ class AssignmentResource extends Resource
                                 if ($state === 'brigadier_schedule') {
                                     $set('role_in_shift', 'brigadier');
                                 }
-                            }),
+                            })
+                            ->visible(fn () => !$isInitiator)
+                            ->default(fn () => $isInitiator ? 'brigadier_schedule' : null),
+                            
+                        // Скрытое поле assignment_type для инициатора
+                        Forms\Components\Hidden::make('assignment_type')
+                            ->default('brigadier_schedule')
+                            ->visible(fn () => $isInitiator),
                     ])->columns(1),
 
                 Forms\Components\Section::make('Основная информация')
@@ -146,23 +172,46 @@ class AssignmentResource extends Resource
                             ->default('executor')
                             ->disabled(fn (callable $get) => $get('assignment_type') === 'brigadier_schedule')
                             ->dehydrated()
-                            ->visible(fn () => auth()->user()->can('edit_assignments')), // Только для тех, кто может редактировать
+                            ->visible(fn () => !$isInitiator),
 
-                        Forms\Components\Select::make('source')
-                            ->label('Источник назначения')
-                            ->options([
-                                'dispatcher' => 'Диспетчер',
-                                'initiator' => 'Инициатор',
-                            ])
-                            ->required()
-                            ->default(function (callable $get) {
-                                // Автоматически устанавливаем источник в зависимости от типа
-                                return $get('assignment_type') === 'brigadier_schedule' ? 'initiator' : 'dispatcher';
-                            })
-                            ->disabled() // Делаем поле только для чтения
-                            ->dehydrated()
-                            ->visible(fn () => auth()->user()->can('edit_assignments')), // Только для админов и тех, кто может редактировать
+                        // Для инициатора - всегда бригадир (скрытое поле)
+                        Forms\Components\Hidden::make('role_in_shift')
+                            ->default('brigadier')
+                            ->visible(fn () => $isInitiator),
                     ])->columns(2),
+
+                Forms\Components\Section::make('Информация о создании')
+                    ->schema([
+                        // Информация о текущем пользователе (только для просмотра)
+                        Forms\Components\Placeholder::make('creator_info')
+                            ->label('Создатель назначения')
+                            ->content(function () use ($user) {
+                                $role = $user->roles->first()->name ?? 'без роли';
+                                $roleDisplay = match($role) {
+                                    'initiator' => 'Инициатор',
+                                    'dispatcher' => 'Диспетчер',
+                                    'admin' => 'Администратор (действует как диспетчер)',
+                                    'hr' => 'HR (действует как диспетчер)',
+                                    'manager' => 'Менеджер (действует как диспетчер)',
+                                    'contractor_admin' => 'Админ подрядчика (действует как диспетчер)',
+                                    default => ucfirst($role) . ' (действует как диспетчер)'
+                                };
+                                return "{$user->full_name} - {$roleDisplay}";
+                            })
+                            ->columnSpanFull(),
+                            
+                        // Скрытые поля для автоматического заполнения
+                        Forms\Components\Hidden::make('created_by')
+                            ->default(fn () => auth()->id()),
+                            
+                        Forms\Components\Hidden::make('source')
+                            ->default(function () use ($user) {
+                                // Используем метод из модели для единообразия логики
+                                return \App\Models\Assignment::determineSource($user);
+                            }),
+                    ])
+                    ->columnSpanFull()
+                    ->visibleOn('create'), // Только при создании
 
                 Forms\Components\Section::make('Планирование')
                     ->schema([
@@ -171,18 +220,9 @@ class AssignmentResource extends Resource
                             ->required()
                             ->native(false)
                             ->rules([
-                                function () {
-                                    return function (string $attribute, $value, Closure $fail) {
-                                        $user = auth()->user();
-                                        
-                                        // Для инициатора и диспетчера - только текущие и будущие даты
-                                        if ($user->hasAnyRole(['initiator', 'dispatcher'])) {
-                                            if (strtotime($value) < strtotime('today')) {
-                                                $fail('Вы не можете изменять назначения на прошедшие даты.');
-                                            }
-                                        }
-                                    };
-                                },
+                                'required',
+                                'date',
+                                new FutureOrTodayDate(),
                             ]),
 
                         Forms\Components\TimePicker::make('planned_start_time')
@@ -221,6 +261,7 @@ class AssignmentResource extends Resource
 
                 Forms\Components\Section::make('Статус и подтверждение')
                     ->schema([
+                        // Поле статуса для не-инициаторов
                         Forms\Components\Select::make('status')
                             ->label('Статус')
                             ->options([
@@ -231,21 +272,30 @@ class AssignmentResource extends Resource
                             ])
                             ->required()
                             ->default('pending')
-                            ->live(),
+                            ->live()
+                            ->visible(fn () => !$isInitiator),
+                            
+                        // Скрытое поле статуса для инициатора
+                        Forms\Components\Hidden::make('status')
+                            ->default('pending')
+                            ->visible(fn () => $isInitiator),
 
                         Forms\Components\Textarea::make('rejection_reason')
                             ->label('Причина отказа')
                             ->maxLength(65535)
                             ->rows(2)
-                            ->visible(fn (callable $get) => $get('status') === 'rejected'),
+                            ->visible(fn (callable $get) => $get('status') === 'rejected')
+                            ->disabled(fn () => $isInitiator),
 
                         Forms\Components\DateTimePicker::make('confirmed_at')
                             ->label('Дата подтверждения')
-                            ->visible(fn (callable $get) => $get('status') === 'confirmed'),
+                            ->visible(fn (callable $get) => $get('status') === 'confirmed')
+                            ->disabled(true),
 
                         Forms\Components\DateTimePicker::make('rejected_at')
                             ->label('Дата отклонения')
-                            ->visible(fn (callable $get) => $get('status') === 'rejected'),
+                            ->visible(fn (callable $get) => $get('status') === 'rejected')
+                            ->disabled(true),
 
                         // Информация о созданной смене
                         Forms\Components\Placeholder::make('shift_info')
@@ -307,6 +357,28 @@ class AssignmentResource extends Resource
                     ->label('Исполнитель')
                     ->searchable()
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('creator.full_name')
+                    ->label('Создал')
+                    ->searchable()
+                    ->sortable()
+                    ->placeholder('—')
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('source')
+                    ->label('Источник')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => match($state) {
+                        'initiator' => 'Инициатор',
+                        'dispatcher' => 'Диспетчер',
+                        default => ucfirst($state)
+                    })
+                    ->color(fn ($state) => match($state) {
+                        'initiator' => 'success',
+                        'dispatcher' => 'primary',
+                        default => 'gray'
+                    })
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('workRequest.request_number')
                     ->label('Заявка')
@@ -383,7 +455,8 @@ class AssignmentResource extends Resource
                         'brigadier_schedule' => 'Бригадиры',
                         'work_request' => 'Заявки',
                         'mass_personnel' => 'Массовый персонал',
-                    ]),
+                    ])
+                    ->visible(fn () => auth()->user()->hasAnyRole(['dispatcher', 'admin'])), // Только диспетчер и админ
 
                 Tables\Filters\SelectFilter::make('status')
                     ->label('Статус')
@@ -400,6 +473,14 @@ class AssignmentResource extends Resource
                         'executor' => 'Исполнитель',
                         'brigadier' => 'Бригадир',
                     ]),
+
+                Tables\Filters\SelectFilter::make('source')
+                    ->label('Источник')
+                    ->options([
+                        'initiator' => 'Инициатор',
+                        'dispatcher' => 'Диспетчер',
+                    ])
+                    ->visible(fn () => auth()->user()->hasAnyRole(['admin', 'dispatcher'])),
 
                 Tables\Filters\Filter::make('has_shift')
                     ->label('Есть смена')
@@ -424,24 +505,54 @@ class AssignmentResource extends Resource
                                 fn (Builder $query, $date): Builder => $query->whereDate('planned_date', '<=', $date),
                             );
                     }),
+
+                Tables\Filters\Filter::make('created_by')
+                    ->label('Создатель')
+                    ->form([
+                        Forms\Components\Select::make('creator_id')
+                            ->label('Создатель')
+                            ->options(User::whereHas('roles', function ($query) {
+                                $query->whereIn('name', ['initiator', 'dispatcher', 'admin']);
+                            })->get()->pluck('full_name', 'id'))
+                            ->searchable()
+                            ->preload(),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when(
+                                $data['creator_id'],
+                                fn (Builder $query, $creatorId): Builder => $query->where('created_by', $creatorId),
+                            );
+                    })
+                    ->visible(fn () => auth()->user()->hasAnyRole(['admin', 'dispatcher'])),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
-                    ->label('Редактировать'),
+                    ->label('Редактировать')
+                    ->visible(fn (Assignment $record) => auth()->user()->can('update', $record)),
+                    
                 Tables\Actions\DeleteAction::make()
-                    ->label('Удалить'),
+                    ->label('Удалить')
+                    ->visible(fn (Assignment $record) => auth()->user()->can('delete', $record)),
+                    
                 Tables\Actions\Action::make('confirm')
                     ->label('Подтвердить')
                     ->icon('heroicon-o-check')
                     ->color('success')
-                    ->visible(fn (Assignment $record) => $record->status === 'pending')
+                    ->visible(fn (Assignment $record) => 
+                        $record->status === 'pending' && 
+                        auth()->user()->can('confirm', $record)
+                    )
                     ->action(fn (Assignment $record) => $record->confirm()),
 
                 Tables\Actions\Action::make('reject')
                     ->label('Отклонить')
                     ->icon('heroicon-o-x-mark')
                     ->color('danger')
-                    ->visible(fn (Assignment $record) => $record->status === 'pending')
+                    ->visible(fn (Assignment $record) => 
+                        $record->status === 'pending' && 
+                        auth()->user()->can('reject', $record)
+                    )
                     ->form([
                         Forms\Components\Textarea::make('rejection_reason')
                             ->label('Причина отказа')
@@ -454,7 +565,8 @@ class AssignmentResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
-                        ->label('Удалить выбранные'),
+                        ->label('Удалить выбранные')
+                        ->visible(fn () => auth()->user()->can('deleteAny', Assignment::class)),
                 ]),
             ])
             ->defaultSort('planned_date', 'desc');
@@ -480,10 +592,44 @@ class AssignmentResource extends Resource
     {
         $user = Auth::user();
         
+        // Проверяем разрешения в зависимости от роли
+        if ($user->hasRole('initiator')) {
+            return $user->can('view_any_assignment');
+        }
+        
+        if ($user->hasRole('dispatcher')) {
+            return $user->can('view_any_assignment');
+        }
+        
         if ($user->hasAnyRole(['executor', 'contractor_executor', 'trainee'])) {
             return $user->can('view_any_assignment') || $user->can('view_assignment');
         }
         
-        return true;
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+        
+        // Для остальных ролей - доступ запрещен
+        return false;
+    }
+
+    public static function canCreate(): bool
+    {
+        $user = Auth::user();
+        
+        if ($user->hasRole('initiator')) {
+            return $user->can('create_assignment') && $user->can('create_brigadier_schedule');
+        }
+        
+        // Для других ролей используем стандартную логику
+        if ($user->hasRole('dispatcher')) {
+            return $user->can('create_assignment');
+        }
+        
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+        
+        return false;
     }
 }

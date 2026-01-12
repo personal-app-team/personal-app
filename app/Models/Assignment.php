@@ -32,7 +32,8 @@ class Assignment extends Model
         'planned_address_id',
         'planned_custom_address',
         'is_custom_planned_address',
-        'shift_id'
+        'shift_id',
+        'created_by', // ДОБАВЛЕНО: соответствует таблице БД
     ];
 
     protected $casts = [
@@ -63,6 +64,7 @@ class Assignment extends Model
                 'confirmed_at',
                 'rejected_at',
                 'rejection_reason',
+                'created_by',
             ])
             ->logOnlyDirty() // Только измененные поля
             ->dontSubmitEmptyLogs()
@@ -89,6 +91,7 @@ class Assignment extends Model
             'user_name' => $this->user?->full_name,
             'work_request_number' => $this->workRequest?->request_number,
             'planned_address' => $this->full_planned_address,
+            'creator_name' => $this->creator?->full_name,
         ]);
     }
 
@@ -111,6 +114,11 @@ class Assignment extends Model
     public function shift()
     {
         return $this->belongsTo(Shift::class);
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     // === SCOPES ===
@@ -273,5 +281,39 @@ class Assignment extends Model
         }
 
         return $this->plannedAddress?->full_address;
+    }
+
+    /**
+     * Определить source для пользователя
+     */
+    public static function determineSource(User $user): string
+    {
+        // Если пользователь имеет роль инициатора - возвращаем 'initiator'
+        if ($user->hasRole('initiator')) {
+            return 'initiator';
+        }
+        
+        // Все остальные роли (admin, dispatcher, hr, manager, etc.) = 'dispatcher'
+        return 'dispatcher';
+    }
+
+    /**
+     * Boot метод для автоматического заполнения
+     */
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($assignment) {
+            if (auth()->check()) {
+                $user = auth()->user();
+                
+                // Автоматически заполняем created_by
+                $assignment->created_by = $user->id;
+                
+                // Определяем source по правилам
+                $assignment->source = self::determineSource($user);
+            }
+        });
     }
 }

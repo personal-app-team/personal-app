@@ -135,12 +135,20 @@ return [
             'permission' => 0664,
             'replace_placeholders' => true,
         ],
-        
+
         'activity_errors' => [
             'driver' => 'daily',
             'path' => storage_path('logs/activity/errors.log'),
             'level' => 'error',
             'days' => 90,
+            'replace_placeholders' => true,
+        ],
+
+        // === ДОБАВЛЕННЫЙ КАНАЛ ДЛЯ НАЗНАЧЕНИЙ ===
+        'assignments' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/assignments.log'),
+            'level' => env('LOG_LEVEL', 'info'),
             'replace_placeholders' => true,
         ],
 

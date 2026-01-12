@@ -6,17 +6,10 @@ use App\Models\Assignment;
 use App\Models\Shift;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use App\Notifications\NewAssignmentNotification;
 
 class AssignmentObserver
 {
-    public function creating(Assignment $assignment): void
-    {
-        // Автоматически заполняем created_by
-        if (!$assignment->created_by && Auth::check()) {
-            $assignment->created_by = Auth::id();
-        }
-    }
-
     public function updated(Assignment $assignment): void
     {
         // Если это назначение бригадира, статус изменился на "confirmed" и смена еще не создана
@@ -25,15 +18,6 @@ class AssignmentObserver
             $assignment->isConfirmed() && 
             !$assignment->shift_id) {
             $this->createShiftFromConfirmedAssignment($assignment);
-        }
-        
-        // Если это массовое назначение, статус изменился на "confirmed" и отчет еще не создан
-        // Добавляем проверку на isMassPersonnel() (нужно добавить этот метод в модель)
-        if ($assignment->assignment_type === 'mass_personnel' && 
-            $assignment->isDirty('status') && 
-            $assignment->isConfirmed() && 
-            !$assignment->massPersonnelReport()->exists()) {
-            $this->createMassPersonnelReport($assignment);
         }
         
         // Отправляем уведомление исполнителю при создании назначения
@@ -51,42 +35,28 @@ class AssignmentObserver
         }
     }
 
-    private function createMassPersonnelReport(Assignment $assignment): void
-    {
-        $report = MassPersonnelReport::create([
-            'request_id' => $assignment->work_request_id,
-            'workers_count' => 0,
-            'total_hours' => 0,
-            'status' => 'draft',
-            'contractor_id' => $assignment->workRequest->contractor_id,
-        ]);
-
-        // Связываем отчет с назначением (нужно добавить связь в модели)
-        $assignment->mass_personnel_report_id = $report->id;
-        $assignment->save();
-    }
-
     private function sendAssignmentNotification(Assignment $assignment): void
     {
         $user = $assignment->user;
         
-        // Здесь можно интегрировать с любой системой уведомлений
-        // Например, через Laravel Notifications или WebSocket
+        if ($user) {
+            // 1. Отправляем уведомление через Laravel Notification System
+            $user->notify(new NewAssignmentNotification($assignment));
+            
+            // 2. Показываем всплывающее уведомление через Filament
+            // (если пользователь сейчас в системе)
+            \Filament\Notifications\Notification::make()
+                ->title('Новое назначение')
+                ->body('Вам назначена ' . ($assignment->isBrigadierSchedule() ? 'роль бригадира' : 'работа по заявке'))
+                ->success()
+                ->sendToDatabase($user); // Сохраняем для просмотра позже
+        }
+        
         \Log::info('Уведомление для исполнителя', [
-            'user_id' => $user->id,
+            'user_id' => $user?->id,
             'assignment_id' => $assignment->id,
             'type' => $assignment->assignment_type,
             'planned_date' => $assignment->planned_date,
-        ]);
-        
-        // Для тестирования можно создать запись в базе
-        \App\Models\Notification::create([
-            'user_id' => $user->id,
-            'type' => 'assignment_created',
-            'title' => 'Новое назначение',
-            'message' => 'Вам назначена ' . ($assignment->isBrigadierSchedule() ? 'роль бригадира' : 'работа по заявке'),
-            'data' => ['assignment_id' => $assignment->id],
-            'read_at' => null,
         ]);
     }
     
@@ -111,6 +81,27 @@ class AssignmentObserver
 
         // Связываем смену с назначением
         $assignment->update(['shift_id' => $shift->id]);
+    }
+
+    /**
+     * Логирование изменения статуса
+     */
+    private function logStatusChange(Assignment $assignment): void
+    {
+        $oldStatus = $assignment->getOriginal('status');
+        $newStatus = $assignment->status;
+        
+        Log::channel('assignments')->info('Статус назначения изменен', [
+            'assignment_id' => $assignment->id,
+            'assignment_number' => $assignment->assignment_number,
+            'user_id' => $assignment->user_id,
+            'user_name' => $assignment->user?->full_name,
+            'old_status' => $oldStatus,
+            'new_status' => $newStatus,
+            'changed_by' => auth()->id(),
+            'changed_at' => now(),
+            'assignment_type' => $assignment->assignment_type,
+        ]);
     }
 
     /**

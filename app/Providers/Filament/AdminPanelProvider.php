@@ -17,9 +17,9 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
-// ДОБАВЬТЕ ЭТИ ИМПОРТЫ
 use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
-use Filament\Navigation\NavigationItem;
+use App\Filament\Widgets\NotificationsWidget;
+use Filament\Navigation\MenuItem;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -42,8 +42,8 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 Widgets\AccountWidget::class,
                 Widgets\FilamentInfoWidget::class,
+                NotificationsWidget::class,
             ])
-            // ДОБАВЬТЕ ЭТУ СТРОКУ ДЛЯ ПОДКЛЮЧЕНИЯ SHIELD
             ->plugin(FilamentShieldPlugin::make())
             ->middleware([
                 EncryptCookies::class,
@@ -58,6 +58,12 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+            ])
+            ->userMenuItems([
+                MenuItem::make()
+                    ->label('Уведомления')
+                    ->icon('heroicon-o-bell')
+                    ->url('/admin/notifications'),
             ]);
     }
 }

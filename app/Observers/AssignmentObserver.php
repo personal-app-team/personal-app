@@ -40,24 +40,21 @@ class AssignmentObserver
         $user = $assignment->user;
         
         if ($user) {
-            // 1. Отправляем уведомление через Laravel Notification System
-            $user->notify(new NewAssignmentNotification($assignment));
-            
-            // 2. Показываем всплывающее уведомление через Filament
-            // (если пользователь сейчас в системе)
-            \Filament\Notifications\Notification::make()
-                ->title('Новое назначение')
-                ->body('Вам назначена ' . ($assignment->isBrigadierSchedule() ? 'роль бригадира' : 'работа по заявке'))
-                ->success()
-                ->sendToDatabase($user); // Сохраняем для просмотра позже
+            // Отправляем уведомление через Laravel Notification System
+            try {
+                $user->notify(new NewAssignmentNotification($assignment));
+                Log::info('Уведомление отправлено успешно', [
+                    'user_id' => $user->id,
+                    'assignment_id' => $assignment->id,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Ошибка отправки уведомления', [
+                    'user_id' => $user->id,
+                    'assignment_id' => $assignment->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
-        
-        \Log::info('Уведомление для исполнителя', [
-            'user_id' => $user?->id,
-            'assignment_id' => $assignment->id,
-            'type' => $assignment->assignment_type,
-            'planned_date' => $assignment->planned_date,
-        ]);
     }
     
     /**

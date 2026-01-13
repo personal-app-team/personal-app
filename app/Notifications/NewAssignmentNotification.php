@@ -6,38 +6,42 @@ use App\Models\Assignment;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 
 class NewAssignmentNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(public Assignment $assignment)
+    protected $assignment;
+
+    public function __construct(Assignment $assignment)
     {
+        $this->assignment = $assignment;
     }
 
-    public function via(object $notifiable): array
+    public function via($notifiable): array
     {
-        return ['database']; // Используем канал базы данных
+        return ['database'];
     }
 
-    public function toDatabase(object $notifiable): array
+    public function toDatabase($notifiable): array
     {
+        $assignmentType = match($this->assignment->assignment_type) {
+            'brigadier_schedule' => 'Плановое назначение бригадира',
+            'work_request' => 'Назначение на заявку',
+            'mass_personnel' => 'Массовое назначение',
+            default => 'Назначение'
+        };
+
         return [
             'assignment_id' => $this->assignment->id,
-            'assignment_type' => $this->assignment->assignment_type,
+            'assignment_type' => $assignmentType,
             'planned_date' => $this->assignment->planned_date->format('d.m.Y'),
+            'planned_time' => $this->assignment->planned_start_time,
             'message' => 'Вам назначена ' . ($this->assignment->isBrigadierSchedule() ? 'роль бригадира' : 'работа по заявке'),
-            'url' => route('filament.admin.resources.assignments.view', $this->assignment),
+            'url' => '/admin/assignments/' . $this->assignment->id,
+            'icon' => 'heroicon-o-user-plus',
+            'color' => 'primary',
+            'title' => 'Новое назначение',
         ];
-    }
-
-    public function toMail(object $notifiable): MailMessage
-    {
-        return (new MailMessage)
-            ->subject('Новое назначение')
-            ->line('Вам назначена новая задача.')
-            ->action('Посмотреть назначение', route('filament.admin.resources.assignments.view', $this->assignment))
-            ->line('Спасибо за использование нашей системы!');
     }
 }

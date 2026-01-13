@@ -18,21 +18,42 @@ class NotificationResource extends Resource
     protected static ?string $navigationGroup = '👑 Система';
     protected static ?string $navigationLabel = 'Уведомления';
     protected static ?int $navigationSort = 70;
-    
+
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
+                Forms\Components\TextInput::make('id')
+                    ->label('ID')
+                    ->disabled(),
+                    
                 Forms\Components\TextInput::make('type')
-                    ->label('Тип')
+                    ->label('Тип уведомления')
+                    ->disabled(),
+                    
+                Forms\Components\TextInput::make('notifiable_type')
+                    ->label('Тип получателя')
+                    ->disabled(),
+                    
+                Forms\Components\TextInput::make('notifiable_id')
+                    ->label('ID получателя')
                     ->disabled(),
                     
                 Forms\Components\KeyValue::make('data')
-                    ->label('Данные')
+                    ->label('Данные уведомления')
+                    ->columnSpanFull()
                     ->disabled(),
                     
                 Forms\Components\DateTimePicker::make('read_at')
                     ->label('Прочитано')
+                    ->disabled(),
+                    
+                Forms\Components\DateTimePicker::make('created_at')
+                    ->label('Создано')
+                    ->disabled(),
+                    
+                Forms\Components\DateTimePicker::make('updated_at')
+                    ->label('Обновлено')
                     ->disabled(),
             ]);
     }
@@ -41,13 +62,26 @@ class NotificationResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('id')
+                    ->label('ID')
+                    ->searchable()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                    
                 Tables\Columns\TextColumn::make('type')
                     ->label('Тип')
+                    ->formatStateUsing(fn ($state) => class_basename($state))
                     ->sortable(),
+                    
+                Tables\Columns\TextColumn::make('data.title')
+                    ->label('Заголовок')
+                    ->limit(30)
+                    ->searchable(),
                     
                 Tables\Columns\TextColumn::make('data.message')
                     ->label('Сообщение')
-                    ->limit(50),
+                    ->limit(50)
+                    ->searchable(),
                     
                 Tables\Columns\IconColumn::make('read_at')
                     ->label('Статус')
@@ -55,32 +89,85 @@ class NotificationResource extends Resource
                     ->trueIcon('heroicon-o-check-circle')
                     ->falseIcon('heroicon-o-clock')
                     ->trueColor('success')
-                    ->falseColor('warning'),
+                    ->falseColor('warning')
+                    ->sortable(),
                     
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Создано')
-                    ->dateTime('d.m.Y H:i')
-                    ->sortable(),
+                    ->dateTime('d.m.Y H:i:s')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                Tables\Filters\Filter::make('unread')
+                    ->label('Только непрочитанные')
+                    ->query(fn ($query) => $query->whereNull('read_at')),
+                    
+                Tables\Filters\Filter::make('read')
+                    ->label('Только прочитанные')
+                    ->query(fn ($query) => $query->whereNotNull('read_at')),
+                    
+                Tables\Filters\SelectFilter::make('type')
+                    ->label('Тип уведомления')
+                    ->options(function () {
+                        $types = DatabaseNotification::select('type')->distinct()->get();
+                        $options = [];
+                        foreach ($types as $type) {
+                            $options[$type->type] = class_basename($type->type);
+                        }
+                        return $options;
+                    }),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\Action::make('markAsRead')
+                    ->label('Отметить прочитанным')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->action(function (DatabaseNotification $record) {
+                        $record->markAsRead();
+                    })
+                    ->visible(fn (DatabaseNotification $record) => is_null($record->read_at))
+                    ->hidden(fn () => !auth()->user()->hasRole('admin')),
+                    
+                Tables\Actions\DeleteAction::make()
+                    ->hidden(fn () => !auth()->user()->hasRole('admin')),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->hidden(fn () => !auth()->user()->hasRole('admin')),
+                    Tables\Actions\BulkAction::make('markAsRead')
+                        ->label('Отметить выбранные как прочитанные')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->action(function ($records) {
+                            $records->each->markAsRead();
+                        })
+                        ->deselectRecordsAfterCompletion(),
                 ]),
-            ]);
+            ])
+            ->defaultSort('created_at', 'desc')
+            ->recordUrl(null); // Отключаем автоматический переход по клику
     }
 
     public static function getPages(): array
     {
         return [
             'index' => Pages\ListNotifications::route('/'),
-            'view' => Pages\ViewNotification::route('/{record}'),
         ];
+    }
+    
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = parent::getEloquentQuery();
+        
+        // Администратор видит все уведомления, остальные - только свои
+        if (!auth()->user()->hasRole('admin')) {
+            $query->where('notifiable_type', 'App\Models\User')
+                  ->where('notifiable_id', auth()->id());
+        }
+        
+        return $query;
     }
 }

@@ -9,11 +9,11 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Database\Eloquent\Builder;
 
 class NotificationResource extends Resource
 {
     protected static ?string $model = DatabaseNotification::class;
-
     protected static ?string $navigationIcon = 'heroicon-o-bell-alert';
     protected static ?string $navigationGroup = '👑 Система';
     protected static ?string $navigationLabel = 'Уведомления';
@@ -119,7 +119,9 @@ class NotificationResource extends Resource
                     }),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
+                Tables\Actions\ViewAction::make()
+                    ->hidden(fn ($record) => !auth()->user()->can('view', $record)),
+                
                 Tables\Actions\Action::make('markAsRead')
                     ->label('Отметить прочитанным')
                     ->icon('heroicon-o-check-circle')
@@ -127,16 +129,18 @@ class NotificationResource extends Resource
                     ->action(function (DatabaseNotification $record) {
                         $record->markAsRead();
                     })
-                    ->visible(fn (DatabaseNotification $record) => is_null($record->read_at))
-                    ->hidden(fn () => !auth()->user()->hasRole('admin')),
+                    ->visible(fn (DatabaseNotification $record) => 
+                        is_null($record->read_at) && 
+                        auth()->user()->can('markAsRead', $record) // Используем наш метод
+                    ),
                     
                 Tables\Actions\DeleteAction::make()
-                    ->hidden(fn () => !auth()->user()->hasRole('admin')),
+                    ->hidden(fn ($record) => !auth()->user()->can('delete', $record)),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
-                        ->hidden(fn () => !auth()->user()->hasRole('admin')),
+                        ->hidden(fn () => !auth()->user()->can('deleteAny', DatabaseNotification::class)),
                     Tables\Actions\BulkAction::make('markAsRead')
                         ->label('Отметить выбранные как прочитанные')
                         ->icon('heroicon-o-check-circle')
@@ -144,11 +148,12 @@ class NotificationResource extends Resource
                         ->action(function ($records) {
                             $records->each->markAsRead();
                         })
-                        ->deselectRecordsAfterCompletion(),
+                        ->deselectRecordsAfterCompletion()
+                        ->hidden(fn () => !auth()->user()->can('viewAny', DatabaseNotification::class)),
                 ]),
             ])
             ->defaultSort('created_at', 'desc')
-            ->recordUrl(null); // Отключаем автоматический переход по клику
+            ->recordUrl(null);
     }
 
     public static function getPages(): array
@@ -162,10 +167,11 @@ class NotificationResource extends Resource
     {
         $query = parent::getEloquentQuery();
         
-        // Администратор видит все уведомления, остальные - только свои
-        if (!auth()->user()->hasRole('admin')) {
+        // Если пользователь не админ и не имеет разрешение view_any_notification,
+        // показываем только его уведомления
+        if (!auth()->user()->hasRole('admin') && !auth()->user()->can('viewAny', DatabaseNotification::class)) {
             $query->where('notifiable_type', 'App\Models\User')
-                  ->where('notifiable_id', auth()->id());
+                ->where('notifiable_id', auth()->id());
         }
         
         return $query;

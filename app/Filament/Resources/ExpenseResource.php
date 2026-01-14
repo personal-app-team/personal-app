@@ -293,9 +293,4 @@ class ExpenseResource extends Resource
             'edit' => Pages\EditExpense::route('/{record}/edit'),
         ];
     }
-    
-    public static function canAccess(): bool
-    {
-        return auth()->user()->hasAnyRole(['admin', 'dispatcher', 'executor']);
-    }
 }

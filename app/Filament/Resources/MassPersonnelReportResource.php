@@ -456,9 +456,4 @@ class MassPersonnelReportResource extends Resource
             'edit' => Pages\EditMassPersonnelReport::route('/{record}/edit'),
         ];
     }
-    
-    public static function canAccess(): bool
-    {
-        return auth()->user()->hasAnyRole(['admin', 'dispatcher', 'hr']);
-    }
 }

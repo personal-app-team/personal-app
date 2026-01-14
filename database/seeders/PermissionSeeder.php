@@ -31,19 +31,22 @@ class PermissionSeeder extends Seeder
         // 5. Восстанавливаем политики, которые были изменены вручную
         $this->restoreManualPolicies($existingPolicies);
 
-        // 6. Определяем НОВЫЕ разрешения (которые появились после генерации)
+        // 6. ✅ ДОБАВЛЯЕМ КАСТОМНЫЕ РАЗРЕШЕНИЯ
+        $this->addCustomPermissions();
+
+        // 7. Определяем НОВЫЕ разрешения (которые появились после генерации)
         $newPermissions = Permission::whereNotIn('name', $oldPermissionNames)->get();
         
-        // 7. Восстанавливаем состояния ролей (кроме admin)
+        // 8. Восстанавливаем состояния ролей (кроме admin)
         $this->restoreRoleStates($roleStates);
         
-        // 8. Админу даем ВСЕ разрешения (включая новые)
+        // 9. Админу даем ВСЕ разрешения (включая новые)
         $this->giveAdminAllPermissions();
         
-        // 9. Выводим отчет о новых разрешениях
+        // 10. Выводим отчет о новых разрешениях
         $this->showNewPermissionsReport($newPermissions, $roleStates);
         
-        // 10. Статистика
+        // 11. Статистика
         $this->showStatistics();
     }
     
@@ -85,6 +88,7 @@ class PermissionSeeder extends Seeder
         // Список политик, которые мы изменяли вручную
         $manualPolicies = [
             'AssignmentPolicy.php',
+            'DatabaseNotificationPolicy.php',
             // Добавьте другие политики, которые изменяли вручную
         ];
         
@@ -100,6 +104,27 @@ class PermissionSeeder extends Seeder
         if ($restoredCount > 0) {
             $this->command->info("📋 Всего восстановлено ручных политик: {$restoredCount}");
         }
+    }
+
+    private function addCustomPermissions(): void
+    {
+        $this->command->info('➕ Добавляем кастомные разрешения...');
+        
+        $customPermissions = [
+            'confirm_assignment',
+            'reject_assignment',
+            'create_brigadier_schedule',
+            'view_activity_logs',
+        ];
+        
+        foreach ($customPermissions as $permissionName) {
+            \Spatie\Permission\Models\Permission::firstOrCreate([
+                'name' => $permissionName,
+                'guard_name' => 'web'
+            ]);
+        }
+        
+        $this->command->info('✅ Кастомные разрешения добавлены');
     }
     
     private function restoreRoleStates(array $roleStates): void

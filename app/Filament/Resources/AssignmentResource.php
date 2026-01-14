@@ -32,6 +32,11 @@ class AssignmentResource extends Resource
         $query = parent::getEloquentQuery();
         $user = auth()->user();
 
+        // Если нет пользователя (консольные команды) - вернуть базовый запрос
+        if (!$user) {
+            return $query;
+        }
+
         // Исполнитель, contractor_executor, trainee видят только свои
         if ($user->hasAnyRole(['executor', 'contractor_executor', 'trainee'])) {
             return $query->where('user_id', $user->id);
@@ -49,24 +54,11 @@ class AssignmentResource extends Resource
 
         // HR, contractor_admin не видят назначения вообще
         if ($user->hasAnyRole(['hr', 'contractor_admin'])) {
-            return $query->where('id', 0); // Пустой результат
+            return $query->where('id', 0);
         }
 
         // Для admin, manager - без фильтрации
         return $query;
-    }
-
-    public static function canViewAny(): bool
-    {
-        $user = auth()->user();
-        
-        // Проверяем базовое разрешение
-        if (!$user->can('view_any_assignment')) {
-            return false;
-        }
-        
-        // Инициатор, диспетчер, admin, manager могут видеть
-        return $user->hasAnyRole(['initiator', 'dispatcher', 'admin', 'manager']);
     }
 
     public static function form(Form $form): Form
@@ -539,19 +531,28 @@ class AssignmentResource extends Resource
                     ->label('Подтвердить')
                     ->icon('heroicon-o-check')
                     ->color('success')
-                    ->visible(fn (Assignment $record) => 
-                        $record->status === 'pending' && 
-                        auth()->user()->can('confirm', $record)
+                    ->visible(fn (Assignment $record): bool => 
+                        $record->status === 'pending' 
+                        && auth()->check() 
+                        && auth()->user()->can('confirm_assignment', $record)  // ⬅️ Изменено!
                     )
-                    ->action(fn (Assignment $record) => $record->confirm()),
+                    ->action(function (Assignment $record): void {
+                        if ($record->confirm()) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Назначение подтверждено')
+                                ->success()
+                                ->send();
+                        }
+                    }),
 
                 Tables\Actions\Action::make('reject')
                     ->label('Отклонить')
                     ->icon('heroicon-o-x-mark')
                     ->color('danger')
-                    ->visible(fn (Assignment $record) => 
-                        $record->status === 'pending' && 
-                        auth()->user()->can('reject', $record)
+                    ->visible(fn (Assignment $record): bool => 
+                        $record->status === 'pending' 
+                        && auth()->check() 
+                        && auth()->user()->can('reject_assignment', $record)  // ⬅️ Изменено!
                     )
                     ->form([
                         Forms\Components\Textarea::make('rejection_reason')
@@ -560,6 +561,10 @@ class AssignmentResource extends Resource
                     ])
                     ->action(function (Assignment $record, array $data): void {
                         $record->reject($data['rejection_reason']);
+                        \Filament\Notifications\Notification::make()
+                            ->title('Назначение отклонено')
+                            ->success()
+                            ->send();
                     }),
             ])
             ->bulkActions([
@@ -586,50 +591,5 @@ class AssignmentResource extends Resource
             'create' => Pages\CreateAssignment::route('/create'),
             'edit' => Pages\EditAssignment::route('/{record}/edit'),
         ];
-    }
-
-    public static function canAccess(): bool
-    {
-        $user = Auth::user();
-        
-        // Проверяем разрешения в зависимости от роли
-        if ($user->hasRole('initiator')) {
-            return $user->can('view_any_assignment');
-        }
-        
-        if ($user->hasRole('dispatcher')) {
-            return $user->can('view_any_assignment');
-        }
-        
-        if ($user->hasAnyRole(['executor', 'contractor_executor', 'trainee'])) {
-            return $user->can('view_any_assignment') || $user->can('view_assignment');
-        }
-        
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-        
-        // Для остальных ролей - доступ запрещен
-        return false;
-    }
-
-    public static function canCreate(): bool
-    {
-        $user = Auth::user();
-        
-        if ($user->hasRole('initiator')) {
-            return $user->can('create_assignment') && $user->can('create_brigadier_schedule');
-        }
-        
-        // Для других ролей используем стандартную логику
-        if ($user->hasRole('dispatcher')) {
-            return $user->can('create_assignment');
-        }
-        
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-        
-        return false;
     }
 }

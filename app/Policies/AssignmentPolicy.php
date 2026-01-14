@@ -15,7 +15,8 @@ class AssignmentPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_assignment');
+        // ТОЛЬКО бизнес-логика, без проверки разрешений!
+        return true; // Filament Shield уже проверил view_any_assignment
     }
 
     /**
@@ -23,11 +24,6 @@ class AssignmentPolicy
      */
     public function view(User $user, Assignment $assignment): bool
     {
-        // Проверяем базовое разрешение
-        if (!$user->can('view_assignment')) {
-            return false;
-        }
-        
         // Инициатор может видеть только плановые назначения бригадира
         if ($user->hasRole('initiator')) {
             return $assignment->assignment_type === 'brigadier_schedule';
@@ -38,7 +34,7 @@ class AssignmentPolicy
             return $assignment->user_id === $user->id;
         }
         
-        return true;
+        return true; // Для остальных ролей
     }
 
     /**
@@ -46,17 +42,9 @@ class AssignmentPolicy
      */
     public function create(User $user): bool
     {
-        // Проверяем базовое разрешение
-        if (!$user->can('create_assignment')) {
-            return false;
-        }
-        
         // Инициатор может создавать только плановые назначения бригадира
-        if ($user->hasRole('initiator')) {
-            return true; // Фильтрация по типу будет в форме
-        }
-        
-        return true;
+        // Фильтрация по типу будет в форме Filament
+        return true; // Filament Shield уже проверил create_assignment
     }
 
     /**
@@ -64,15 +52,9 @@ class AssignmentPolicy
      */
     public function update(User $user, Assignment $assignment): bool
     {
-        // Проверяем базовое разрешение
-        if (!$user->can('update_assignment')) {
-            return false;
-        }
-        
         // Инициатор может редактировать только:
         // 1. Плановые назначения бригадира
-        // 2. Только свои назначения (где он создатель или связан через workRequest?)
-        // 3. Только в статусе pending
+        // 2. Только в статусе pending
         if ($user->hasRole('initiator')) {
             return $assignment->assignment_type === 'brigadier_schedule' &&
                    $assignment->status === 'pending';
@@ -80,10 +62,11 @@ class AssignmentPolicy
         
         // Исполнитель может обновлять только свои назначения
         if ($user->hasRole('executor')) {
-            return $assignment->user_id === $user->id;
+            return $assignment->user_id === $user->id &&
+                   $assignment->status === 'pending';
         }
         
-        return true;
+        return true; // Для диспетчера, админа и др.
     }
 
     /**
@@ -91,11 +74,6 @@ class AssignmentPolicy
      */
     public function delete(User $user, Assignment $assignment): bool
     {
-        // Проверяем базовое разрешение
-        if (!$user->can('delete_assignment')) {
-            return false;
-        }
-        
         // Инициатор НЕ может удалять назначения
         if ($user->hasRole('initiator')) {
             return false;
@@ -106,7 +84,7 @@ class AssignmentPolicy
             return false;
         }
         
-        return true;
+        return true; // Для диспетчера, админа
     }
 
     /**
@@ -119,7 +97,7 @@ class AssignmentPolicy
             return false;
         }
         
-        return $user->can('delete_any_assignment');
+        return true; // Для диспетчера, админа
     }
 
     /**
@@ -168,7 +146,7 @@ class AssignmentPolicy
             return false;
         }
         
-        return $user->can('replicate_assignment');
+        return true;
     }
 
     /**
@@ -185,24 +163,19 @@ class AssignmentPolicy
      */
     public function confirm(User $user, Assignment $assignment): bool
     {
-        // Инициатор не может подтверждать назначения
-        if ($user->hasRole('initiator')) {
-            return false;
-        }
-        
-        // Исполнитель может подтверждать только свои назначения
+        // Исполнитель может подтверждать только свои pending назначения
         if ($user->hasRole('executor')) {
-            return $assignment->user_id === $user->id &&
-                   $assignment->status === 'pending';
+            return $assignment->user_id === $user->id 
+                && $assignment->status === 'pending';
         }
         
-        // Диспетчер может подтверждать любые назначения
-        if ($user->hasRole('dispatcher')) {
+        // Диспетчер и администратор могут подтверждать любые pending
+        if ($user->hasAnyRole(['dispatcher', 'admin'])) {
             return $assignment->status === 'pending';
         }
         
-        // Администратор может подтверждать любые назначения
-        return $user->hasRole('admin');
+        // Остальные роли не могут подтверждать
+        return false;
     }
     
     /**
@@ -210,7 +183,18 @@ class AssignmentPolicy
      */
     public function reject(User $user, Assignment $assignment): bool
     {
-        // Та же логика, что и для confirm
-        return $this->confirm($user, $assignment);
+        // Исполнитель может отклонить только свои pending назначения
+        if ($user->hasRole('executor')) {
+            return $assignment->user_id === $user->id 
+                && $assignment->status === 'pending';
+        }
+        
+        // Диспетчер и администратор могут отклонять любые pending
+        if ($user->hasAnyRole(['dispatcher', 'admin'])) {
+            return $assignment->status === 'pending';
+        }
+        
+        // Остальные роли не могут отклонять
+        return false;
     }
 }

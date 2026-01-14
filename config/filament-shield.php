@@ -6,7 +6,7 @@ return [
         'slug' => 'shield/roles',
         'navigation_sort' => -1,
         'navigation_badge' => true,
-        'navigation_group' => 'Права доступа',
+        'navigation_group' => '👑 Права доступа',
         'is_globally_searchable' => false,
         'show_model_path' => true,
     ],
@@ -44,15 +44,16 @@ return [
         'pages' => true,
         'widgets' => true,
         'resources' => true,
-        'custom_permissions' => false,
+        'custom_permissions' => true,
     ],
     'generator' => [
         'option' => 'policies_and_permissions',
-        // Абсолютный путь для Docker/WSL окружения
         'policy_directory' => base_path('app/Policies'),
-        // Правильный namespace
         'policy_namespace' => 'App\\Policies',
-        'except' => [],
+        'except' => [
+            // Исключаем ActivityLogResource из генерации разрешений
+            \App\Filament\Resources\ActivityLogResource::class,
+        ],
     ],
     'exclude' => [
         'enabled' => true,
@@ -60,7 +61,15 @@ return [
             'Dashboard',
         ],
         'widgets' => [],
-        'resources' => [],
+        'resources' => [
+            // Shield ресурсы показываем только админам
+            \BezhanSalleh\FilamentShield\Resources\RoleResource::class => [
+                'should_show_navigation' => fn() => auth()->user()?->hasRole('admin') ?? false,
+            ],
+            \BezhanSalleh\FilamentShield\Resources\PermissionResource::class => [
+                'should_show_navigation' => fn() => auth()->user()?->hasRole('admin') ?? false,
+            ],
+        ],
     ],
     'register_role_policy' => [
         'enabled' => false,

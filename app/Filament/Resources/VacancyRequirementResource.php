@@ -139,9 +139,4 @@ class VacancyRequirementResource extends Resource
             'edit' => Pages\EditVacancyRequirement::route('/{record}/edit'),
         ];
     }
-    
-    public static function canAccess(): bool
-    {
-        return auth()->user()->hasAnyRole(['admin', 'hr', 'manager']);
-    }
 }

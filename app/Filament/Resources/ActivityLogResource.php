@@ -24,13 +24,28 @@ class ActivityLogResource extends Resource
     
     protected static ?string $modelLabel = 'запись истории';
     protected static ?string $pluralModelLabel = 'История изменений';
-    
+
+    // ВАЖНО: Проверяем доступ через роли, а не через разрешения
     public static function canViewAny(): bool
     {
-        return true;
+        // Только администраторы и диспетчеры могут видеть логи
+        return auth()->user() && 
+               auth()->user()->hasAnyRole(['admin', 'dispatcher', 'manager']);
     }
     
     public static function canCreate(): bool
+    {
+        return false;
+    }
+
+    // Отключаем редактирование
+    public static function canEdit($record): bool
+    {
+        return false;
+    }
+    
+    // Отключаем удаление
+    public static function canDelete($record): bool
     {
         return false;
     }

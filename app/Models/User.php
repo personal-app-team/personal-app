@@ -547,10 +547,4 @@ class User extends Authenticatable
             'is_active' => $this->hasRole('executor') || $this->hasRole('dispatcher') || $this->hasRole('initiator'),
         ]);
     }
-
-    // public function canAccessPanel(Panel $panel): bool
-    // {
-    //     // Простая проверка: есть ли хотя бы одна роль
-    //     return $this->roles()->exists();
-    // }
 }

@@ -461,15 +461,4 @@ class ShiftResource extends Resource
             'edit' => Pages\EditShift::route('/{record}/edit'),
         ];
     }
-
-    public static function canAccess(): bool
-    {
-        $user = Auth::user();
-        
-        if ($user->hasAnyRole(['executor', 'contractor_executor', 'trainee'])) {
-            return $user->can('view_any_shift') || $user->can('view_shift');
-        }
-        
-        return true;
-    }
 }

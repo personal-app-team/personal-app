@@ -4,66 +4,35 @@ namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
+use App\Models\Assignment;
+use App\Policies\AssignmentPolicy;
 
 class AuthServiceProvider extends ServiceProvider
 {
-    protected $policies = [];
+    /**
+     * Регистрируем только нестандартные политики
+     */
+    protected $policies = [
+        // DatabaseNotification нужно регистрировать вручную, 
+        // потому что это встроенная модель Laravel
+        \Illuminate\Notifications\DatabaseNotification::class => \App\Policies\DatabaseNotificationPolicy::class,
+    ];
 
     public function boot(): void
     {
         $this->registerPolicies();
 
-        // Отключаем автоматическое определение политик
-        Gate::guessPolicyNamesUsing(fn () => null);
-
-        // Глобальные правила - администратор может всё
-        Gate::before(fn ($user) => $user->hasRole('admin'));
-
-        // Кастомные gates
-        Gate::define('confirm_assignment', fn ($user, $assignment) => 
-            $user->hasRole('executor') &&
-            $user->id === $assignment->user_id &&
-            $assignment->status === 'pending'
-        );
-
-        Gate::define('reject_assignment', fn ($user, $assignment) => 
-            $user->hasRole('executor') &&
-            $user->id === $assignment->user_id &&
-            $assignment->status === 'pending'
-        );
-
-        Gate::define('create_shift', fn ($user, $assignment) => 
-            $user->hasRole('executor') &&
-            $user->id === $assignment->user_id &&
-            $assignment->status === 'confirmed'
-        );
-
-        Gate::define('take_work_request', fn ($user, $workRequest) => 
-            $user->hasRole('dispatcher') &&
-            $workRequest->status === 'published'
-        );
-
-        Gate::define('create_brigadier_schedule', fn ($user) => 
-            $user->hasAnyRole(['initiator', 'dispatcher', 'admin']) &&
-            $user->can('create_assignment')
-        );
-
-        Gate::define('create_work_request_assignment', fn ($user, $workRequest) => 
-            $user->hasRole('dispatcher') &&
-            $workRequest->dispatcher_id === $user->id &&
-            $user->can('create_assignment')
-        );
-
-        Gate::define('create_mass_personnel_assignment', fn ($user) => 
-            $user->hasAnyRole(['dispatcher', 'contractor_admin', 'contractor_dispatcher', 'admin']) &&
-            $user->can('create_assignment')
-        );
-
-        Gate::define('confirm_mass_personnel_assignment', function ($user, $assignment) {
-            if ($assignment->assignment_type !== 'mass_personnel') return false;
-            if (!$assignment->workRequest || !$user->contractor_id) return false;
-            return $assignment->workRequest->contractor_id === $user->contractor_id &&
-                $user->hasAnyRole(['contractor_admin', 'contractor_dispatcher']);
+        // 🔥 ВАЖНО: Администратор может всё
+        Gate::before(function ($user, $ability) {
+            return $user->hasRole('admin') ? true : null;
         });
+
+        // 🔥 ТОЛЬКО нестандартные методы, которые не находит Laravel автоматически
+        Gate::define('confirm_assignment', [AssignmentPolicy::class, 'confirm']);
+        Gate::define('reject_assignment', [AssignmentPolicy::class, 'reject']);
+        
+        // ❌ УДАЛИТЬ все остальные Gates! Они не нужны!
+        // Gate::define('access_admin_panel', ...) - НЕ НУЖЕН!
+        // Filament использует свои проверки для доступа к панели
     }
 }

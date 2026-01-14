@@ -418,9 +418,4 @@ class VisitedLocationResource extends Resource
 
         return $query;
     }
-    
-    public static function canAccess(): bool
-    {
-        return auth()->user()->hasAnyRole(['admin', 'dispatcher', 'executor']);
-    }
 }

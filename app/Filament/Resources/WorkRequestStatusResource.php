@@ -204,9 +204,4 @@ class WorkRequestStatusResource extends Resource
             'edit' => Pages\EditWorkRequestStatus::route('/{record}/edit'),
         ];
     }
-    
-    public static function canAccess(): bool
-    {
-        return auth()->user()->hasAnyRole(['admin', 'initiator', 'dispatcher']);
-    }
 }

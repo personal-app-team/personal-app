@@ -393,9 +393,4 @@ class PhotoResource extends Resource
             'edit' => Pages\EditPhoto::route('/{record}/edit'),
         ];
     }
-    
-    public static function canAccess(): bool
-    {
-        return auth()->user()->hasAnyRole(['admin', 'dispatcher', 'executor', 'hr']);
-    }
 }

@@ -86,12 +86,6 @@ class PurposeAddressRulesRelationManager extends RelationManager
             ->defaultSort('priority', 'asc');
     }
 
-    public static function canAccess(array $arguments = []): bool
-    {
-        $purpose = $arguments['ownerRecord'] ?? null;
-        return $purpose && $purpose->payer_selection_type === 'address_based';
-    }
-
     public static function canViewForRecord(object $ownerRecord, string $pageClass): bool
     {
         return $ownerRecord->payer_selection_type === 'address_based';

@@ -332,9 +332,4 @@ class ContractorWorkerResource extends Resource
             ->with(['massPersonnelReport', 'confirmator'])
             ->orderBy('created_at', 'desc');
     }
-    
-    public static function canAccess(): bool
-    {
-        return auth()->user()->hasAnyRole(['admin', 'dispatcher', 'hr']);
-    }
 }

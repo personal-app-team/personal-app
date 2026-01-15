@@ -89,6 +89,8 @@ class PermissionSeeder extends Seeder
         $manualPolicies = [
             'AssignmentPolicy.php',
             'DatabaseNotificationPolicy.php',
+            'PermissionPolicy.php',
+            'RolePolicy.php',
             // Добавьте другие политики, которые изменяли вручную
         ];
         

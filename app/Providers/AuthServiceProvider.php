@@ -13,8 +13,8 @@ class AuthServiceProvider extends ServiceProvider
      * Регистрируем только нестандартные политики
      */
     protected $policies = [
-        // DatabaseNotification нужно регистрировать вручную, 
-        // потому что это встроенная модель Laravel
+        \Spatie\Permission\Models\Role::class => \App\Policies\RolePolicy::class,
+        \Spatie\Permission\Models\Permission::class => \App\Policies\PermissionPolicy::class,
         \Illuminate\Notifications\DatabaseNotification::class => \App\Policies\DatabaseNotificationPolicy::class,
     ];
 
@@ -22,17 +22,26 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->registerPolicies();
 
-        // 🔥 ВАЖНО: Администратор может всё
+        // 🔥 Администратор может всё
         Gate::before(function ($user, $ability) {
             return $user->hasRole('admin') ? true : null;
         });
 
-        // 🔥 ТОЛЬКО нестандартные методы, которые не находит Laravel автоматически
-        Gate::define('confirm_assignment', [AssignmentPolicy::class, 'confirm']);
-        Gate::define('reject_assignment', [AssignmentPolicy::class, 'reject']);
+        // Gates для Assignment (если нужны для API или других мест)
+        Gate::define('confirm_assignment', [\App\Policies\AssignmentPolicy::class, 'confirm']);
+        Gate::define('reject_assignment', [\App\Policies\AssignmentPolicy::class, 'reject']);
         
-        // ❌ УДАЛИТЬ все остальные Gates! Они не нужны!
-        // Gate::define('access_admin_panel', ...) - НЕ НУЖЕН!
-        // Filament использует свои проверки для доступа к панели
+        // Gates для Shield - используем политики
+        // Gate::define('view_shield', function ($user) {
+        //     return $user->hasRole('admin');
+        // });
+        
+        // Gate::define('manage_roles', function ($user) {
+        //     return $user->hasRole('admin');
+        // });
+        
+        // Gate::define('manage_permissions', function ($user) {
+        //     return $user->hasRole('admin');
+        // });
     }
 }

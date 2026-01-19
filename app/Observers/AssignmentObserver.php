@@ -12,7 +12,22 @@ class AssignmentObserver
 {
     public function updated(Assignment $assignment): void
     {
-        // Если это назначение бригадира, статус изменился на "confirmed" и смена еще не создана
+        // УДАЛЕНИЕ СМЕНЫ при отмене/отказе
+        if ($assignment->isDirty('status')) {
+            $newStatus = $assignment->status;
+            $cancelStatuses = [
+                'cancelled_by_initiator',
+                'executor_refused', 
+                'dispatcher_cancelled',
+                'rejected'
+            ];
+            
+            if (in_array($newStatus, $cancelStatuses)) {
+                $this->deleteShiftIfExists($assignment);
+            }
+        }
+        
+        // Создание смены для подтвержденного бригадира
         if ($assignment->isBrigadierSchedule() && 
             $assignment->isDirty('status') && 
             $assignment->isConfirmed() && 
@@ -20,8 +35,7 @@ class AssignmentObserver
             $this->createShiftFromConfirmedAssignment($assignment);
         }
         
-        // Отправляем уведомление исполнителю при создании назначения
-        // Проверяем, что статус изменился с null на 'pending'
+        // Отправка уведомления при создании назначения
         if ($assignment->isDirty('status') && 
             $assignment->getOriginal('status') === null && 
             $assignment->status === 'pending' && 
@@ -29,9 +43,32 @@ class AssignmentObserver
             $this->sendAssignmentNotification($assignment);
         }
         
-        // Логируем изменение статуса в файл активности
+        // Логирование изменения статуса
         if ($assignment->isDirty('status')) {
             $this->logStatusChange($assignment);
+        }
+    }
+
+    private function deleteShiftIfExists(Assignment $assignment): void
+    {
+        if ($assignment->shift_id) {
+            try {
+                $shift = Shift::find($assignment->shift_id);
+                if ($shift) {
+                    $shift->delete();
+                    Log::info('Смена удалена из-за отмены назначения', [
+                        'assignment_id' => $assignment->id,
+                        'shift_id' => $shift->id,
+                        'new_status' => $assignment->status,
+                        'assignment_type' => $assignment->assignment_type
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error('Ошибка при удалении смены', [
+                    'assignment_id' => $assignment->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
         }
     }
 

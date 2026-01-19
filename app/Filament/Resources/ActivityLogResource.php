@@ -120,7 +120,10 @@ class ActivityLogResource extends Resource
                         'App\\Models\\ContractType' => '📄 Тип договора',
                         'App\\Models\\TaxStatus' => '💰 Налоговый статус',
                         'App\\Models\\WorkRequestStatus' => '🚩 Статус заявки',
-                        
+
+                        // Откилики
+                        'App\\Models\\RespondRequest' => '🙋 Отклик на заявку',
+
                         default => class_basename($state),
                     })
                     ->searchable(),
@@ -161,6 +164,7 @@ class ActivityLogResource extends Resource
                         'App\\Models\\User' => '👤 Пользователи',
                         'App\\Models\\Shift' => '💰 Смены',
                         'App\\Models\\WorkRequest' => '📄 Заявки',
+                        'App\\Models\\RespondRequest' => '🙋 Отклики на заявки',
                         
                         // === Финансы ===
                         'App\\Models\\Compensation' => '💸 Компенсации',

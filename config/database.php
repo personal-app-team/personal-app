@@ -81,6 +81,19 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+
+            'dump' => [
+                'use_single_transaction' => true,      // Для InnoDB
+                'timeout' => 300,                      // 5 минут таймаут
+                'add_extra_option' => '--column-statistics=0', // Для совместимости
+                'exclude_tables' => [                   // Таблицы для исключения
+                    'failed_jobs',
+                    'jobs',
+                    'sessions',
+                    'cache',
+                    'cache_locks',
+                ],
+            ],
         ],
 
         'pgsql' => [

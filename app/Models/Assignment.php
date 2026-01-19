@@ -216,6 +216,97 @@ class Assignment extends Model
         ]);
     }
 
+        /**
+     * Отменить назначение (инициатор)
+     */
+    public function cancelByInitiator($reason = null)
+    {
+        // Проверка, что это плановое назначение бригадира
+        if (!$this->isBrigadierSchedule()) {
+            throw new \Exception('Инициатор может отменять только плановые назначения бригадира');
+        }
+        
+        // Проверка, что статус позволяет отмену
+        if (!in_array($this->status, ['pending', 'confirmed'])) {
+            throw new \Exception('Можно отменять только назначения в статусах "Ожидает" или "Подтверждено"');
+        }
+        
+        return $this->update([
+            'status' => 'cancelled_by_initiator',
+            'rejected_at' => now(),
+            'rejection_reason' => $reason
+        ]);
+    }
+
+        /**
+     * Отказаться от назначения (исполнитель после подтверждения)
+     */
+    public function refuse($reason = null)
+    {
+        // Проверка, что это назначение исполнителя
+        if ($this->role_in_shift === 'brigadier' && $this->isBrigadierSchedule()) {
+            throw new \Exception('Бригадир не может отказаться от планового назначения');
+        }
+        
+        // Проверка, что статус позволяет отказ
+        if ($this->status !== 'confirmed') {
+            throw new \Exception('Можно отказаться только от подтвержденного назначения');
+        }
+        
+        return $this->update([
+            'status' => 'executor_refused',
+            'rejected_at' => now(),
+            'rejection_reason' => $reason
+        ]);
+    }
+
+    /**
+     * Отменить назначение в заявке (диспетчер)
+     */
+    public function cancelByDispatcher($reason = null)
+    {
+        // Проверка, что это назначение в заявке
+        if (!$this->isWorkRequest()) {
+            throw new \Exception('Диспетчер может отменять только назначения в заявках');
+        }
+        
+        // Проверка, что статус позволяет отмену
+        if (!in_array($this->status, ['pending', 'confirmed'])) {
+            throw new \Exception('Можно отменять только назначения в статусах "Ожидает" или "Подтверждено"');
+        }
+        
+        return $this->update([
+            'status' => 'dispatcher_cancelled',
+            'rejected_at' => now(),
+            'rejection_reason' => $reason
+        ]);
+    }
+
+    /**
+     * Проверить, можно ли отменить назначение
+     */
+    public function canBeCancelled(): bool
+    {
+        return in_array($this->status, ['pending', 'confirmed']) 
+            && !in_array($this->status, [
+                'cancelled_by_initiator',
+                'executor_refused',
+                'dispatcher_cancelled',
+                'rejected',
+                'completed'
+            ]);
+    }
+
+    /**
+     * Проверить, можно ли отказаться (для исполнителя)
+     */
+    public function canBeRefused(): bool
+    {
+        return $this->status === 'confirmed' 
+            && $this->role_in_shift === 'executor'
+            && $this->isWorkRequest();
+    }
+
     /**
      * Завершить назначение
      */

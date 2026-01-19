@@ -374,6 +374,41 @@ class WorkRequest extends Model
         return $shiftWorkers + $reportWorkers;
     }
 
+    /**
+     * Получить доступных исполнителей для этой заявки
+     */
+    public function getAvailableExecutors()
+    {
+        return User::whereHas('roles', function ($query) {
+                $query->where('name', 'executor');
+            })
+            // Исключаем уже назначенных на эту заявку
+            ->whereDoesntHave('assignments', function ($query) {
+                $query->where('work_request_id', $this->id)
+                    ->whereIn('status', ['pending', 'confirmed']);
+            })
+            // Исключаем тех, кто уже занят на эту дату
+            ->whereDoesntHave('assignments', function ($query) {
+                $query->whereDate('planned_date', $this->work_date)
+                    ->whereIn('status', ['pending', 'confirmed']);
+            })
+            ->orderBy('surname')
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * Получить уже назначенных исполнителей
+     */
+    public function getAssignedExecutors()
+    {
+        return User::whereHas('assignments', function ($query) {
+                $query->where('work_request_id', $this->id)
+                    ->whereIn('status', ['pending', 'confirmed']);
+            })
+            ->get();
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()

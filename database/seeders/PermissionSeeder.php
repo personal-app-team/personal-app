@@ -88,6 +88,7 @@ class PermissionSeeder extends Seeder
         // Список политик, которые мы изменяли вручную
         $manualPolicies = [
             'AssignmentPolicy.php',
+            'ActivityPolicy.php',
             'DatabaseNotificationPolicy.php',
             'PermissionPolicy.php',
             'RolePolicy.php',
@@ -117,6 +118,17 @@ class PermissionSeeder extends Seeder
             'reject_assignment',
             'create_brigadier_schedule',
             'view_activity_logs',
+            // НОВЫЕ РАЗРЕШЕНИЯ:
+            'cancel_brigadier_assignment',           // Отмена СВОИХ назначений бригадира
+            'cancel_any_brigadier_assignment',       // Отмена ЛЮБЫХ назначений бригадира
+            'refuse_assignment',                      // Отказ исполнителя (после подтверждения)
+            'cancel_work_request_assignment',         // Отмена назначения в заявке (диспетчер)
+            'apply_to_work_request',                  // Отклик на заявку (исполнитель)
+            'confirm_respond_request',                // Подтверждение отклика (диспетчер)
+            'reject_respond_request',                 // Отклонение отклика (диспетчер)
+            'confirm_mass_personnel',                 // Подтверждение массового персонала
+            'reject_mass_personnel',                  // Отклонение массового персонала
+            'cancel_mass_personnel',                  // Отмена массового персонала
         ];
         
         foreach ($customPermissions as $permissionName) {

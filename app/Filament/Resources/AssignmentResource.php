@@ -14,7 +14,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
-use App\Rules\FutureOrTodayDate;
+use App\Rules\AssignmentDateValidation;
 
 class AssignmentResource extends Resource
 {
@@ -214,7 +214,7 @@ class AssignmentResource extends Resource
                             ->rules([
                                 'required',
                                 'date',
-                                new FutureOrTodayDate(),
+                                new AssignmentDateValidation(),
                             ]),
 
                         Forms\Components\TimePicker::make('planned_start_time')
@@ -565,6 +565,136 @@ class AssignmentResource extends Resource
                             ->title('Назначение отклонено')
                             ->success()
                             ->send();
+                    }),
+                // 1. Кнопка отмены для инициатора
+                Tables\Actions\Action::make('cancel_by_initiator')
+                    ->label('Отменить (инициатор)')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('warning')
+                    ->visible(fn (Assignment $record): bool => 
+                        $record->isBrigadierSchedule() 
+                        && $record->canBeCancelled()
+                        && auth()->check() 
+                        && auth()->user()->can('cancel_brigadier_assignment') 
+                        && $record->created_by === auth()->id()
+                    )
+                    ->form([
+                        Forms\Components\Textarea::make('cancellation_reason')
+                            ->label('Причина отмены')
+                            ->required(),
+                    ])
+                    ->action(function (Assignment $record, array $data): void {
+                        try {
+                            $record->cancelByInitiator($data['cancellation_reason']);
+                            \Filament\Notifications\Notification::make()
+                                ->title('Назначение отменено')
+                                ->success()
+                                ->send();
+                        } catch (\Exception $e) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Ошибка')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+
+                // 2. Кнопка отмены для админа (любые бригадирские назначения)
+                Tables\Actions\Action::make('cancel_any_brigadier')
+                    ->label('Отменить любое')
+                    ->icon('heroicon-o-no-symbol')
+                    ->color('danger')
+                    ->visible(fn (Assignment $record): bool => 
+                        $record->isBrigadierSchedule() 
+                        && $record->canBeCancelled()
+                        && auth()->check() 
+                        && auth()->user()->can('cancel_any_brigadier_assignment')
+                    )
+                    ->form([
+                        Forms\Components\Textarea::make('cancellation_reason')
+                            ->label('Причина отмены')
+                            ->required(),
+                    ])
+                    ->action(function (Assignment $record, array $data): void {
+                        try {
+                            $record->cancelByInitiator($data['cancellation_reason']);
+                            \Filament\Notifications\Notification::make()
+                                ->title('Назначение отменено (админ)')
+                                ->success()
+                                ->send();
+                        } catch (\Exception $e) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Ошибка')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+
+                // 3. Кнопка отказа для исполнителя
+                Tables\Actions\Action::make('refuse')
+                    ->label('Отказаться')
+                    ->icon('heroicon-o-hand-raised')
+                    ->color('danger')
+                    ->visible(fn (Assignment $record): bool => 
+                        $record->canBeRefused()
+                        && auth()->check() 
+                        && auth()->user()->can('refuse_assignment')
+                        && $record->user_id === auth()->id()
+                    )
+                    ->form([
+                        Forms\Components\Textarea::make('refusal_reason')
+                            ->label('Причина отказа')
+                            ->required(),
+                    ])
+                    ->action(function (Assignment $record, array $data): void {
+                        try {
+                            $record->refuse($data['refusal_reason']);
+                            \Filament\Notifications\Notification::make()
+                                ->title('Вы отказались от назначения')
+                                ->success()
+                                ->send();
+                        } catch (\Exception $e) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Ошибка')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+
+                // 4. Кнопка отмены для диспетчера (назначения в заявках)
+                Tables\Actions\Action::make('cancel_by_dispatcher')
+                    ->label('Отменить (диспетчер)')
+                    ->icon('heroicon-o-trash')
+                    ->color('danger')
+                    ->visible(fn (Assignment $record): bool => 
+                        $record->isWorkRequest() 
+                        && $record->canBeCancelled()
+                        && auth()->check() 
+                        && auth()->user()->can('cancel_work_request_assignment')
+                        // Дополнительная проверка: диспетчер может отменять только свои назначения
+                        && $record->created_by === auth()->id()
+                    )
+                    ->form([
+                        Forms\Components\Textarea::make('cancellation_reason')
+                            ->label('Причина отмены')
+                            ->required(),
+                    ])
+                    ->action(function (Assignment $record, array $data): void {
+                        try {
+                            $record->cancelByDispatcher($data['cancellation_reason']);
+                            \Filament\Notifications\Notification::make()
+                                ->title('Назначение отменено')
+                                ->success()
+                                ->send();
+                        } catch (\Exception $e) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Ошибка')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
                     }),
             ])
             ->bulkActions([

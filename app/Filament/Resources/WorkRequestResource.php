@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\WorkRequestResource\Pages;
+use App\Filament\Resources\WorkRequestResource\Components\AssignExecutorsModal;
 use App\Models\WorkRequest;
 use App\Models\Assignment;
 use App\Models\User;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\Auth;
 use Filament\Notifications\Notification;
 use Filament\Tables\Filters\Filter;
 use Illuminate\Database\Eloquent\Builder;
+use App\Rules\AssignmentDateValidation;
 
 class WorkRequestResource extends Resource
 {   
@@ -43,7 +45,11 @@ class WorkRequestResource extends Resource
                             ->label('Дата выполнения работ')
                             ->required()
                             ->native(false)
-                            ->live(),
+                            ->rules([
+                                'required',
+                                'date',
+                                new AssignmentDateValidation(allowAdmin: true),
+                            ]),
 
                         Forms\Components\TimePicker::make('start_time')
                             ->label('Время начала работ')
@@ -514,37 +520,78 @@ class WorkRequestResource extends Resource
                     ->label('Назначить исполнителей')
                     ->icon('heroicon-o-user-group')
                     ->color('primary')
-                    ->url(fn (WorkRequest $record): string => 
-                        AssignmentResource::getUrl('index', [
-                            'tableFilters' => [
-                                'work_request_id' => [
-                                    'value' => $record->id,
-                                ],
-                            ],
-                        ])
-                    )
-                    ->openUrlInNewTab()
+                    ->modalHeading(fn (WorkRequest $record) => "Назначение исполнителей на заявку {$record->request_number}")
+                    ->modalSubmitActionLabel('Назначить')
+                    ->modalCancelActionLabel('Отмена')
+                    ->form(function (WorkRequest $record) {
+                        return AssignExecutorsModal::form($record);
+                    })
+                    ->action(function (WorkRequest $record, array $data) {
+                        AssignExecutorsModal::handle($record, $data);
+                    })
                     ->visible(fn (WorkRequest $record): bool => 
                         auth()->user()->hasRole('dispatcher') && 
                         $record->status === WorkRequest::STATUS_IN_PROGRESS &&
                         $record->dispatcher_id === auth()->id()
-                    ),
+                    )
+                    ->after(function () {
+                        // Обновляем таблицу после назначения
+                        $this->refreshTable();
+                    }),
 
                 // Действие для просмотра назначений
                 Tables\Actions\Action::make('view_assignments')
                     ->label('Просмотр назначений')
                     ->icon('heroicon-o-clipboard-document-list')
                     ->color('gray')
-                    ->url(fn (WorkRequest $record): string => 
-                        AssignmentResource::getUrl('index', [
-                            'tableFilters' => [
-                                'work_request_id' => [
-                                    'value' => $record->id,
-                                ],
-                            ],
-                        ])
-                    )
-                    ->openUrlInNewTab()
+                    ->modalHeading(fn (WorkRequest $record) => "Назначения на заявку {$record->request_number}")
+                    ->modalSubmitActionLabel(false)
+                    ->modalCancelActionLabel('Закрыть')
+                    ->form(function (WorkRequest $record) {
+                        $assignments = $record->assignments()
+                            ->with(['user', 'user.specialty'])
+                            ->get();
+                        
+                        return [
+                            Forms\Components\Section::make('Текущие назначения')
+                                ->schema([
+                                    Forms\Components\Repeater::make('assignments')
+                                        ->schema([
+                                            Forms\Components\Placeholder::make('executor')
+                                                ->label('Исполнитель')
+                                                ->content(fn ($state) => 
+                                                    $state['user']['full_name'] . 
+                                                    ($state['user']['specialty'] ? " ({$state['user']['specialty']['name']})" : '')
+                                                ),
+                                            
+                                            Forms\Components\Placeholder::make('status')
+                                                ->label('Статус')
+                                                ->content(fn ($state) => 
+                                                    match($state['status']) {
+                                                        'pending' => '⏳ Ожидает подтверждения',
+                                                        'confirmed' => '✅ Подтверждено',
+                                                        'rejected' => '❌ Отклонено',
+                                                        'completed' => '✓ Завершено',
+                                                        default => $state['status']
+                                                    }
+                                                ),
+                                            
+                                            Forms\Components\Placeholder::make('created_at')
+                                                ->label('Назначено')
+                                                ->content(fn ($state) => 
+                                                    \Carbon\Carbon::parse($state['created_at'])->format('d.m.Y H:i')
+                                                ),
+                                        ])
+                                        ->default($assignments->toArray())
+                                        ->dehydrated(false)
+                                        ->itemLabel(fn (array $state): ?string => 
+                                            $state['user']['full_name'] ?? null
+                                        )
+                                        ->disabled(),
+                                ])
+                                ->collapsible(),
+                        ];
+                    })
                     ->visible(fn (WorkRequest $record): bool => 
                         $record->assignments()->count() > 0
                     ),

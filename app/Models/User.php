@@ -1,8 +1,6 @@
 <?php
 
 namespace App\Models;
-
-// use BezhanSalleh\FilamentShield\Traits\HasPanelShield;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -360,6 +358,26 @@ class User extends Authenticatable
         }
         
         return $this->managedContractor?->allShifts() ?? collect();
+    }
+
+    /**
+     * Получить специальности пользователя в конкретной категории
+     */
+    public function getSpecialtiesInCategory($categoryId)
+    {
+        return $this->specialties()
+            ->where('category_id', $categoryId)
+            ->get();
+    }
+
+    /**
+     * Получить основную специальность в категории (первую)
+     */
+    public function getMainSpecialtyInCategory($categoryId)
+    {
+        return $this->specialties()
+            ->where('category_id', $categoryId)
+            ->first();
     }
 
     // === SCOPES ===

@@ -31,11 +31,11 @@ class Address extends Model
         return $this->hasMany(WorkRequest::class);
     }
 
-    /**
-     * Accessor для полного отображения адреса
-     */
-    public function getDisplayNameAttribute()
-    {
-        return $this->short_name . ' (' . $this->full_address . ')';
-    }
+    // /**
+    //  * Accessor для полного отображения адреса
+    //  */
+    // public function getDisplayNameAttribute()
+    // {
+    //     return $this->short_name . ' (' . $this->full_address . ')';
+    // }
 }

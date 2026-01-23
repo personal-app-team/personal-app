@@ -23,8 +23,8 @@ class AddressesRelationManager extends RelationManager
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('name')
-                    ->label('Название адреса')
+                Forms\Components\TextInput::make('short_name')
+                    ->label('Короткое название адреса')
                     ->required()
                     ->maxLength(255)
                     ->placeholder('Например: Парк Горького, Центральный вход'),
@@ -35,30 +35,30 @@ class AddressesRelationManager extends RelationManager
                     ->rows(2)
                     ->placeholder('г. Москва, ул. Крымский Вал, 9'),
                 
-                Forms\Components\Textarea::make('description')
-                    ->label('Описание')
+                Forms\Components\Textarea::make('location_type')
+                    ->label('Тип локации')
                     ->rows(2)
                     ->columnSpanFull()
-                    ->placeholder('Дополнительная информация об адресе...'),
+                    ->placeholder('Например: Традиционные локации'),
             ]);
     }
 
     public function table(Table $table): Table
     {
         return $table
-            ->recordTitleAttribute('name')
+            ->recordTitleAttribute('short_name')
             ->columns([
-                Tables\Columns\TextColumn::make('name')
-                    ->label('Название')
+                Tables\Columns\TextColumn::make('short_name')
+                    ->label('Короткое название')
                     ->searchable()
                     ->sortable(),
                 
                 Tables\Columns\TextColumn::make('full_address')
-                    ->label('Адрес')
+                    ->label('Полный адрес')
                     ->limit(40),
                 
-                Tables\Columns\TextColumn::make('description')
-                    ->label('Описание')
+                Tables\Columns\TextColumn::make('location_type')
+                    ->label('Тип локации')
                     ->limit(30),
                 
                 Tables\Columns\TextColumn::make('projects_count')
@@ -82,7 +82,7 @@ class AddressesRelationManager extends RelationManager
                     ->recordSelect(
                         fn (Tables\Actions\AttachAction $action) => $action->getRecordSelect()
                             ->preload()
-                            ->searchable(['name', 'full_address'])
+                            ->searchable(['short_name', 'full_address'])
                             ->getSearchResultsUsing(function (string $search) {
                                 return \App\Models\Address::where('name', 'like', "%{$search}%")
                                     ->orWhere('full_address', 'like', "%{$search}%")
@@ -90,7 +90,7 @@ class AddressesRelationManager extends RelationManager
                                     ->pluck('full_address', 'id')
                                     ->map(function ($address, $id) {
                                         $addressRecord = \App\Models\Address::find($id);
-                                        return "{$addressRecord->name} - {$address}";
+                                        return "{$addressRecord->short_name} - {$address}";
                                     });
                             })
                     ),

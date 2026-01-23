@@ -96,7 +96,7 @@ class WorkRequestResource extends Resource
                             ->relationship('address', 'short_name')
                             ->searchable()
                             ->preload()
-                            ->getOptionLabelFromRecordUsing(fn (Address $record) => $record->short_name . ' - ' . $record->full_address)
+                            ->getOptionLabelFromRecordUsing(fn (Address $record) => $record->full_address)
                             ->visible(fn ($get) => !$get('is_custom_address')),
 
                         Forms\Components\Textarea::make('custom_address')

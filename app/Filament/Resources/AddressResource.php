@@ -50,7 +50,7 @@ class AddressResource extends Resource
                             ->label('Проекты'),
 
                         Forms\Components\TextInput::make('short_name')
-                            ->label('Короткое Название')
+                            ->label('Короткое название адреса')
                             ->required()
                             ->maxLength(255),
                         
@@ -60,8 +60,8 @@ class AddressResource extends Resource
                             ->rows(2)
                             ->columnSpanFull(),
                         
-                        Forms\Components\Textarea::make('description')
-                            ->label('Описание')
+                        Forms\Components\Textarea::make('location_type')
+                            ->label('Тип локации')
                             ->rows(2)
                             ->columnSpanFull(),
                     ]),
@@ -90,7 +90,7 @@ class AddressResource extends Resource
                     ->searchable()
                     ->limit(50),
                 
-                Tables\Columns\TextColumn::make('description')
+                Tables\Columns\TextColumn::make('location_type')
                     ->label('Описание')
                     ->limit(30)
                     ->searchable(),

@@ -28,5 +28,5 @@ class AddressProject extends Pivot
      *
      * @var bool
      */
-    public $timestamps = false;
+    public $timestamps = true;
 }

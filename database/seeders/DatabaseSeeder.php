@@ -21,6 +21,14 @@ class DatabaseSeeder extends Seeder
         $this->call(ContractTypeTaxStatusSeeder::class);
         $this->command->info('✅ Справочники договоров и налогов актуализированы');
 
+        // 1.1. Шаблоны адресов
+        $this->call(AddressSeeder::class);
+        $this->command->info('✅ Адреса созданы');
+
+        // 1.2. Проект "ЗИМА В МОСКВЕ 25"
+        $this->call(ProjectSeeder::class);
+        $this->command->info('✅ Проект "ЗИМА В МОСКВЕ 25" создан');
+
         // 2. Категории и специальности
         $this->call(CategorySpecialtySeeder::class);
         $this->command->info('✅ Категории и специальности актуализированы');

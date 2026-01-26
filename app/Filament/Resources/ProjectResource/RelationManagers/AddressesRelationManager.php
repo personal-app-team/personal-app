@@ -8,6 +8,8 @@ use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Notifications\Notification;
+use Illuminate\Validation\Rule;
 
 class AddressesRelationManager extends RelationManager
 {
@@ -33,7 +35,18 @@ class AddressesRelationManager extends RelationManager
                     ->label('Полный адрес')
                     ->required()
                     ->rows(2)
-                    ->placeholder('г. Москва, ул. Крымский Вал, 9'),
+                    ->placeholder('г. Москва, ул. Крымский Вал, 9')
+                    ->rules([
+                        'required',
+                        // ИСПРАВЛЕННЫЙ ВАРИАНТ: используем Rule::unique с явным where
+                        function ($get) {
+                            return Rule::unique('addresses', 'full_address')
+                                ->ignore($this->getRecord()?->id)
+                                ->where(function ($query) {
+                                    return $query->where('is_template', false);
+                                });
+                        }
+                    ]),
                 
                 Forms\Components\Textarea::make('location_type')
                     ->label('Тип локации')
@@ -60,6 +73,10 @@ class AddressesRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('location_type')
                     ->label('Тип локации')
                     ->limit(30),
+
+                Tables\Columns\IconColumn::make('is_template')
+                    ->label('Шаблон')
+                    ->boolean(),
                 
                 Tables\Columns\TextColumn::make('projects_count')
                     ->label('Проектов')
@@ -74,26 +91,64 @@ class AddressesRelationManager extends RelationManager
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make()
-                    ->label('Создать новый адрес'),
+                    ->label('Создать новый адрес')
+                    ->mutateFormDataUsing(function (array $data): array {
+                        // При создании через RelationManager - это всегда не шаблон
+                        $data['is_template'] = false;
+                        return $data;
+                    }),
                     
-                // В headerActions() улучшим AttachAction:
-                Tables\Actions\AttachAction::make()
-                    ->label('Добавить существующий адрес')
-                    ->recordSelect(
-                        fn (Tables\Actions\AttachAction $action) => $action->getRecordSelect()
-                            ->preload()
-                            ->searchable(['short_name', 'full_address'])
-                            ->getSearchResultsUsing(function (string $search) {
-                                return \App\Models\Address::where('name', 'like', "%{$search}%")
-                                    ->orWhere('full_address', 'like', "%{$search}%")
+                // Кнопка 2: Выбрать из шаблона
+                Tables\Actions\Action::make('createFromTemplate')
+                    ->label('Выбрать из шаблона')
+                    ->form([
+                        Forms\Components\Select::make('template_id')
+                            ->label('Шаблон адреса')
+                            ->options(
+                                Address::templates()->pluck('full_address', 'id')
+                            )
+                            ->searchable()
+                            ->required()
+                            ->getSearchResultsUsing(fn (string $search): array => 
+                                Address::templates()
+                                    ->where('full_address', 'like', "%{$search}%")
+                                    ->orWhere('short_name', 'like', "%{$search}%")
                                     ->limit(50)
                                     ->pluck('full_address', 'id')
-                                    ->map(function ($address, $id) {
-                                        $addressRecord = \App\Models\Address::find($id);
-                                        return "{$addressRecord->short_name} - {$address}";
-                                    });
-                            })
-                    ),
+                                    ->toArray()
+                            )
+                            ->getOptionLabelUsing(fn ($value): ?string => 
+                                Address::templates()->find($value)?->full_address
+                            ),
+                    ])
+                    ->action(function (array $data): void {
+                        $template = Address::templates()->find($data['template_id']);
+                        
+                        if (!$template) {
+                            Notification::make()
+                                ->title('Шаблон не найден')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+                        
+                        // Создаем новый адрес на основе шаблона
+                        $address = Address::create([
+                            'short_name' => $template->short_name,
+                            'full_address' => $template->full_address,
+                            'location_type' => $template->location_type,
+                            'is_template' => false,  // Это НЕ шаблон
+                        ]);
+                        
+                        // Привязываем к проекту
+                        $this->getOwnerRecord()->addresses()->attach($address->id);
+                        
+                        Notification::make()
+                            ->title('Адрес создан из шаблона')
+                            ->success()
+                            ->send();
+                    })
+                    ->modalWidth('xl'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

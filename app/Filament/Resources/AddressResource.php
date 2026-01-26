@@ -9,6 +9,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Validation\Rule;
 
 class AddressResource extends Resource
 {
@@ -41,7 +42,6 @@ class AddressResource extends Resource
             ->schema([
                 Forms\Components\Section::make('Информация об адресе')
                     ->schema([
-                        // ЗАМЕНЯЕМ: project_id на projects (many-to-many)
                         Forms\Components\Select::make('projects')
                             ->relationship('projects', 'name')
                             ->multiple()
@@ -49,8 +49,15 @@ class AddressResource extends Resource
                             ->searchable()
                             ->label('Проекты'),
 
+                        Forms\Components\Toggle::make('is_template')
+                            ->label('Это шаблон')
+                            ->helperText('Шаблоны доступны для создания адресов в проектах')
+                            ->reactive(),
+
                         Forms\Components\TextInput::make('short_name')
-                            ->label('Короткое название адреса')
+                            ->label(fn ($get) => $get('is_template') 
+                                ? 'Название шаблона' 
+                                : 'Короткое название адреса')
                             ->required()
                             ->maxLength(255),
                         
@@ -58,8 +65,28 @@ class AddressResource extends Resource
                             ->label('Полный адрес')
                             ->required()
                             ->rows(2)
-                            ->columnSpanFull(),
-                        
+                            ->columnSpanFull()
+                            ->rules([
+                                'required',
+                                // ИСПРАВЛЕННЫЙ ВАРИАНТ:
+                                function ($get) {
+                                    $rule = Rule::unique('addresses', 'full_address')
+                                        ->ignore($get('id'));
+                                    
+                                    // Добавляем условие для шаблонов
+                                    if ($get('is_template') !== null) {
+                                        $rule = $rule->where('is_template', $get('is_template'));
+                                    }
+                                    
+                                    return $rule;
+                                }
+                            ])
+                            ->helperText(function ($get) {
+                                return $get('is_template') 
+                                    ? 'Убедитесь, что такого шаблона еще нет'
+                                    : 'Убедитесь, что такого адреса еще нет в проектах';
+                            }),
+
                         Forms\Components\Textarea::make('location_type')
                             ->label('Тип локации')
                             ->rows(2)
@@ -94,6 +121,10 @@ class AddressResource extends Resource
                     ->label('Описание')
                     ->limit(30)
                     ->searchable(),
+
+                Tables\Columns\IconColumn::make('is_template')
+                    ->label('Шаблон')
+                    ->boolean(),
                 
                 // ИСПРАВЛЯЕМ: название счетчика
                 Tables\Columns\TextColumn::make('address_rules_count')
@@ -124,6 +155,12 @@ class AddressResource extends Resource
                     ->searchable()
                     ->preload()
                     ->label('Проект'),
+
+                Tables\Filters\TernaryFilter::make('is_template')
+                    ->label('Тип адреса')
+                    ->placeholder('Все адреса')
+                    ->trueLabel('Только шаблоны')
+                    ->falseLabel('Только адреса проектов'),
             ])
             // ОБНОВЛЯЕМ ACTIONS С РУССКИМИ НАЗВАНИЯМИ
             ->actions([

@@ -10,11 +10,54 @@ class Address extends Model
     use HasFactory;
 
     protected $fillable = [
-        'short_name',     // было 'name'
+        'short_name',
         'full_address', 
-        'location_type'   // было 'description'
+        'location_type',
+        'is_template'  // добавляем
     ];
 
+    protected $casts = [
+        'is_template' => 'boolean'  // добавляем
+    ];
+
+    // Метод для правил валидации
+    public static function rules($id = null, $isTemplate = null)
+    {
+        $rule = Rule::unique('addresses', 'full_address');
+        
+        if ($id) {
+            $rule = $rule->ignore($id);
+        }
+        
+        if ($isTemplate !== null) {
+            $rule = $rule->where('is_template', $isTemplate);
+        }
+        
+        return ['required', 'string', 'max:1000', $rule];
+    }
+
+    // Аксессоры для обратной совместимости
+    public function getNameAttribute()
+    {
+        return $this->short_name;
+    }
+
+    public function setNameAttribute($value)
+    {
+        $this->attributes['short_name'] = $value;
+    }
+
+    public function getDescriptionAttribute()
+    {
+        return $this->location_type;
+    }
+
+    public function setDescriptionAttribute($value)
+    {
+        $this->attributes['location_type'] = $value;
+    }
+
+    // Отношения
     public function projects()
     {
         return $this->belongsToMany(Project::class)
@@ -31,11 +74,15 @@ class Address extends Model
         return $this->hasMany(WorkRequest::class);
     }
 
-    // /**
-    //  * Accessor для полного отображения адреса
-    //  */
-    // public function getDisplayNameAttribute()
-    // {
-    //     return $this->short_name . ' (' . $this->full_address . ')';
-    // }
+    // Scope для шаблонов
+    public function scopeTemplates($query)
+    {
+        return $query->where('is_template', true);
+    }
+
+    // Scope для обычных адресов
+    public function scopeActual($query)
+    {
+        return $query->where('is_template', false);
+    }
 }

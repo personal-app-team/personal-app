@@ -9,7 +9,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Notifications\Notification;
-use Illuminate\Validation\Rule;
+use App\Rules\UniqueNormalizedAddress;
 
 class AddressesRelationManager extends RelationManager
 {
@@ -38,15 +38,19 @@ class AddressesRelationManager extends RelationManager
                     ->placeholder('г. Москва, ул. Крымский Вал, 9')
                     ->rules([
                         'required',
-                        // ИСПРАВЛЕННЫЙ ВАРИАНТ: используем Rule::unique с явным where
-                        function ($get) {
-                            return Rule::unique('addresses', 'full_address')
-                                ->ignore($this->getRecord()?->id)
-                                ->where(function ($query) {
-                                    return $query->where('is_template', false);
-                                });
+                        // ИСПРАВЛЕННЫЙ ВАРИАНТ с нашим правилом:
+                        function ($get, $state, $context) {
+                            $project = $this->getOwnerRecord();
+                            $record = $context === 'edit' ? $this->getRecord() : null;
+                            
+                            return new UniqueNormalizedAddress(
+                                $record?->id,     // ID для исключения
+                                false,            // Только не шаблоны
+                                $project->id      // Ограничение по проекту
+                            );
                         }
-                    ]),
+                    ])
+                    ->helperText('Адрес будет автоматически нормализован для предотвращения дублирования.'),
                 
                 Forms\Components\Textarea::make('location_type')
                     ->label('Тип локации')
@@ -98,71 +102,124 @@ class AddressesRelationManager extends RelationManager
                         return $data;
                     }),
                     
-                // Кнопка 2: Выбрать из шаблона
-                Tables\Actions\Action::make('createFromTemplate')
-                    ->label('Выбрать из шаблона')
+                // Кнопка: Выбрать из шаблона
+                Tables\Actions\Action::make('addFromTemplates')
+                    ->label('Добавить из шаблонов')
+                    ->modalHeading('Выберите шаблоны адресов')
+                    ->modalSubmitActionLabel('Добавить адреса в проект')
+                    ->modalCancelActionLabel('Отмена')
+                    ->modalWidth('3xl')
                     ->form([
-                        Forms\Components\Select::make('template_id')
-                            ->label('Шаблон адреса')
-                            ->options(
-                                Address::templates()->pluck('full_address', 'id')
-                            )
-                            ->searchable()
+                        Forms\Components\CheckboxList::make('template_ids')
+                            ->label('')
+                            ->options(function () {
+                                $project = $this->getOwnerRecord();
+                                
+                                // Используем наш rule для нормализации
+                                $rule = new UniqueNormalizedAddress(null, false, $project->id);
+                                
+                                // Получаем все шаблоны
+                                $templates = Address::templates()
+                                    ->orderBy('full_address')
+                                    ->get();
+                                
+                                // Фильтруем шаблоны, которые уже есть в проекте
+                                $availableTemplates = $templates->filter(function ($template) use ($rule, $project) {
+                                    try {
+                                        // Проверяем с помощью нашего правила
+                                        $rule->validate(
+                                            'full_address',
+                                            $template->full_address,
+                                            function ($message) {
+                                                // Если валидация не проходит, значит адрес уже существует
+                                                throw new \Exception($message);
+                                            }
+                                        );
+                                        return true;
+                                    } catch (\Exception $e) {
+                                        return false;
+                                    }
+                                });
+                                
+                                return $availableTemplates->pluck('full_address', 'id');
+                            })
+                            ->columns(1)
                             ->required()
-                            ->getSearchResultsUsing(fn (string $search): array => 
-                                Address::templates()
-                                    ->where('full_address', 'like', "%{$search}%")
-                                    ->orWhere('short_name', 'like', "%{$search}%")
-                                    ->limit(50)
-                                    ->pluck('full_address', 'id')
-                                    ->toArray()
-                            )
-                            ->getOptionLabelUsing(fn ($value): ?string => 
-                                Address::templates()->find($value)?->full_address
-                            ),
+                            ->bulkToggleable(),
                     ])
-                    ->action(function (array $data): void {
-                        $template = Address::templates()->find($data['template_id']);
+                    ->action(function (array $data) {
+                        $project = $this->getOwnerRecord();
+                        $added = 0;
+                        $errors = [];
                         
-                        if (!$template) {
-                            Notification::make()
-                                ->title('Шаблон не найден')
-                                ->danger()
-                                ->send();
-                            return;
+                        foreach ($data['template_ids'] as $templateId) {
+                            $template = Address::templates()->find($templateId);
+                            
+                            if (!$template) {
+                                $errors[] = "Шаблон с ID {$templateId} не найден";
+                                continue;
+                            }
+                            
+                            try {
+                                // Проверяем с помощью нашего правила
+                                $rule = new UniqueNormalizedAddress(null, false, $project->id);
+                                $rule->validate('full_address', $template->full_address, function ($message) {
+                                    throw new \Exception($message);
+                                });
+                                
+                                // Создаем адрес
+                                $address = Address::create([
+                                    'short_name' => $template->short_name,
+                                    'full_address' => $template->full_address,
+                                    'location_type' => $template->location_type,
+                                    'is_template' => false,
+                                ]);
+                                
+                                $project->addresses()->attach($address->id);
+                                $added++;
+                                
+                            } catch (\Exception $e) {
+                                $errors[] = "Адрес '{$template->full_address}': " . $e->getMessage();
+                            }
                         }
                         
-                        // Создаем новый адрес на основе шаблона
-                        $address = Address::create([
-                            'short_name' => $template->short_name,
-                            'full_address' => $template->full_address,
-                            'location_type' => $template->location_type,
-                            'is_template' => false,  // Это НЕ шаблон
-                        ]);
+                        if ($added > 0) {
+                            Notification::make()
+                                ->title('Адреса добавлены')
+                                ->body("Добавлено адресов: {$added}" . 
+                                       (!empty($errors) ? "\nОшибки: " . count($errors) : ''))
+                                ->success()
+                                ->send();
+                        }
                         
-                        // Привязываем к проекту
-                        $this->getOwnerRecord()->addresses()->attach($address->id);
-                        
-                        Notification::make()
-                            ->title('Адрес создан из шаблона')
-                            ->success()
-                            ->send();
+                        if (!empty($errors)) {
+                            Notification::make()
+                                ->title('Частично выполнено')
+                                ->body(implode("\n", array_slice($errors, 0, 3)) . 
+                                       (count($errors) > 3 ? "\n... и еще " . (count($errors) - 3) . " ошибок" : ''))
+                                ->warning()
+                                ->send();
+                        }
                     })
-                    ->modalWidth('xl'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                // УБИРАЕМ "Удалить полностью" - оставляем только "Открепить от проекта"
                 Tables\Actions\DetachAction::make()
-                    ->label('Открепить от проекта'),
-                Tables\Actions\DeleteAction::make()
-                    ->label('Удалить полностью'),
+                    ->label('Открепить от проекта')
+                    ->color('danger')
+                    ->icon('heroicon-o-x-circle')
+                    ->requiresConfirmation()
+                    ->modalHeading('Открепить адрес от проекта')
+                    ->modalDescription('Вы уверены, что хотите открепить этот адрес от проекта? Адрес останется в системе и может быть использован в других проектах.')
+                    ->modalSubmitActionLabel('Да, открепить')
+                    ->modalCancelActionLabel('Отмена'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DetachBulkAction::make()
-                        ->label('Открепить выбранные'),
-                    Tables\Actions\DeleteBulkAction::make()
-                        ->label('Удалить выбранные'),
+                        ->label('Открепить выбранные')
+                        ->requiresConfirmation(),
                 ]),
             ]);
     }

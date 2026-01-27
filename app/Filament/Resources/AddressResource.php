@@ -10,6 +10,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Validation\Rule;
+use App\Rules\UniqueNormalizedAddress;
 
 class AddressResource extends Resource
 {
@@ -68,17 +69,13 @@ class AddressResource extends Resource
                             ->columnSpanFull()
                             ->rules([
                                 'required',
-                                // ИСПРАВЛЕННЫЙ ВАРИАНТ:
+                                // ИСПРАВЛЕННЫЙ ВАРИАНТ с нашим правилом:
                                 function ($get) {
-                                    $rule = Rule::unique('addresses', 'full_address')
-                                        ->ignore($get('id'));
-                                    
-                                    // Добавляем условие для шаблонов
-                                    if ($get('is_template') !== null) {
-                                        $rule = $rule->where('is_template', $get('is_template'));
-                                    }
-                                    
-                                    return $rule;
+                                    return new UniqueNormalizedAddress(
+                                        $get('id'),           // ID для исключения
+                                        $get('is_template'),  // Фильтр по шаблонам
+                                        null                  // Без ограничения по проекту
+                                    );
                                 }
                             ])
                             ->helperText(function ($get) {
